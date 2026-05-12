@@ -125,3 +125,143 @@ def _write_tool_doc(docs_dir: Path, name: str, tool: dict) -> None:
             lines.append(f"| {field} | {spec.get('type','any')} |")
 
     (docs_dir / "tools" / f"{name}.md").write_text("\n".join(lines))
+def serve_docs(root: Path, port: int = 8080) -> None:
+    import http.server
+    import socketserver
+    import threading
+    import webbrowser
+
+    docs_dir = root / "target" / "docs"
+    if not docs_dir.exists():
+        console.print("[red]No docs found. Run `ryva docs generate` first.[/red]")
+        return
+
+    html_dir = root / "target" / "docs_html"
+    html_dir.mkdir(parents=True, exist_ok=True)
+    _render_html_docs(docs_dir, html_dir)
+
+    class Handler(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=str(html_dir), **kwargs)
+
+        def log_message(self, format, *args):
+            pass  # suppress request logs
+
+    with socketserver.TCPServer(("", port), Handler) as httpd:
+        url = f"http://localhost:{port}"
+        console.print(Panel(
+            f"[bold green]✓ Docs server running[/bold green]\n"
+            f"[dim]Open: [cyan]{url}[/cyan][/dim]\n"
+            f"[dim]Press Ctrl+C to stop[/dim]",
+            expand=False
+        ))
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            console.print("\n[dim]Docs server stopped.[/dim]")
+
+
+def _render_html_docs(docs_dir: Path, html_dir: Path) -> None:
+    import markdown as md
+
+    css = """
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+               background: #060910; color: #e6edf3; display: flex;
+               min-height: 100vh; font-size: 15px; line-height: 1.7; }
+        nav { width: 240px; min-height: 100vh; background: #0d1117;
+              border-right: 1px solid #1e2733; padding: 32px 20px;
+              position: fixed; top: 0; left: 0; overflow-y: auto; }
+        nav .logo { font-size: 1.2em; font-weight: 700; color: #58a6ff;
+                    margin-bottom: 32px; display: block; letter-spacing: -0.5px; }
+        nav .logo span { color: #e6edf3; }
+        nav .section { font-size: 0.7em; font-weight: 600; color: #484f58;
+                       text-transform: uppercase; letter-spacing: 1px;
+                       margin: 20px 0 8px; }
+        nav a { display: block; color: #8b949e; text-decoration: none;
+                padding: 5px 10px; border-radius: 6px; font-size: 0.9em;
+                margin-bottom: 2px; transition: all 0.15s; }
+        nav a:hover { background: #1e2733; color: #e6edf3; }
+        nav a.active { background: #1a2c42; color: #58a6ff; }
+        main { margin-left: 240px; padding: 48px 64px; max-width: 960px; width: 100%; }
+        h1 { font-size: 2em; font-weight: 700; color: #e6edf3;
+             margin-bottom: 8px; letter-spacing: -0.5px; }
+        h1 + blockquote { margin: 0 0 32px; padding: 0 0 0 12px;
+                          border-left: 3px solid #58a6ff; color: #8b949e; }
+        h2 { font-size: 1.1em; font-weight: 600; color: #79c0ff;
+             margin: 40px 0 16px; padding-bottom: 8px;
+             border-bottom: 1px solid #1e2733; }
+        h3 { font-size: 1em; font-weight: 600; color: #e6edf3; margin: 24px 0 8px; }
+        p { margin-bottom: 16px; color: #c9d1d9; }
+        a { color: #58a6ff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        code { background: #161b22; border: 1px solid #1e2733; padding: 2px 6px;
+               border-radius: 4px; font-family: 'JetBrains Mono', 'Fira Code', monospace;
+               font-size: 0.85em; color: #ff7b72; }
+        pre { background: #0d1117; border: 1px solid #1e2733; padding: 20px;
+              border-radius: 10px; overflow-x: auto; margin: 16px 0; }
+        pre code { background: none; border: none; padding: 0;
+                   color: #e6edf3; font-size: 0.9em; }
+        table { border-collapse: collapse; width: 100%; margin: 20px 0;
+                border-radius: 8px; overflow: hidden;
+                border: 1px solid #1e2733; }
+        th { background: #0d1117; color: #79c0ff; padding: 10px 16px;
+             text-align: left; font-size: 0.85em; font-weight: 600;
+             text-transform: uppercase; letter-spacing: 0.5px; }
+        td { padding: 10px 16px; border-top: 1px solid #1e2733; color: #c9d1d9; }
+        tr:hover td { background: #0d1117; }
+        ul { padding-left: 20px; margin-bottom: 16px; color: #c9d1d9; }
+        li { margin-bottom: 6px; }
+        .badge { display: inline-block; background: #1a2c42; color: #58a6ff;
+                 padding: 2px 10px; border-radius: 20px; font-size: 0.8em;
+                 font-weight: 600; margin-left: 8px; vertical-align: middle; }
+        .meta { display: flex; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }
+        .meta-item { background: #0d1117; border: 1px solid #1e2733;
+                     padding: 8px 14px; border-radius: 8px; font-size: 0.85em; }
+        .meta-item strong { color: #79c0ff; }
+        blockquote { border-left: 3px solid #1e2733; padding-left: 16px;
+                     color: #8b949e; margin: 16px 0; }
+    </style>
+    """
+
+    nav = """
+    <nav>
+        <a class="logo" href="/index.html">Ryva<span> Docs</span></a>
+        <div class="section">Project</div>
+        <a href="/index.html">Overview</a>
+        <div class="section">Agents</div>
+        {agent_links}
+        <div class="section">Tools</div>
+        {tool_links}
+    </nav>
+    """.format(
+        agent_links="\n".join(
+            f'<a href="/agents/{p.stem}.html">{p.stem}</a>'
+            for p in (docs_dir / "agents").glob("*.md")
+            if (docs_dir / "agents").exists()
+        ),
+        tool_links="\n".join(
+            f'<a href="/tools/{p.stem}.html">{p.stem}</a>'
+            for p in (docs_dir / "tools").glob("*.md")
+            if (docs_dir / "tools").exists()
+        ),
+    )
+
+    def render_file(md_path: Path, out_path: Path):
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        content = md_path.read_text()
+        body = md.markdown(content, extensions=["tables", "fenced_code"])
+        title = md_path.stem.replace("_", " ").title()
+        html = f"<!DOCTYPE html><html><head><meta charset='utf-8'><title>{title} — Ryva Docs</title>{css}</head><body>{nav}<main>{body}</main></body></html>"
+        out_path.write_text(html)
+
+    for md_file in docs_dir.rglob("*.md"):
+        relative = md_file.relative_to(docs_dir)
+        out_path = html_dir / relative.with_suffix(".html")
+        render_file(md_file, out_path)
+
+    index_src = docs_dir / "index.md"
+    if index_src.exists():
+        render_file(index_src, html_dir / "index.html")

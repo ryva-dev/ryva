@@ -107,8 +107,11 @@ def docs_serve(
     port: int = typer.Option(8080, "--port", help="Port to serve on"),
     root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
 ):
-    """Serve generated docs locally (coming in Phase 2)."""
-    console.print("[yellow]Doc server coming in Phase 2. For now, open target/docs/index.md[/yellow]")
+    """Serve generated docs locally in your browser."""
+    from ryva.utils import find_project_root
+    from ryva.docs import serve_docs
+    r = root or find_project_root()
+    serve_docs(r, port)
 
 
 list_app = typer.Typer(help="List project resources.")
