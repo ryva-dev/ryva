@@ -1,0 +1,25 @@
+agent: ref(agents/summarizer_agent)
+description: "Evaluates summary quality using LLM-as-judge scoring."
+
+cases:
+  - name: "summary quality"
+    input:
+      text: "Ryva is a framework for building, testing, and deploying agentic AI systems. It brings the same engineering discipline to AI that dbt brought to data transformation."
+      max_sentences: 2
+    criteria: |
+      The summary should:
+      - Accurately capture the main point of the text
+      - Be concise and clear
+      - Not introduce information not present in the original
+      - Be grammatically correct
+    threshold: 0.7
+
+  - name: "word count accuracy"
+    input:
+      text: "The quick brown fox jumps over the lazy dog. This is a simple sentence used for testing purposes."
+      max_sentences: 1
+    criteria: |
+      The word_count field should accurately reflect
+      the number of words in the summary output.
+      The summary should be one sentence or fewer.
+    threshold: 0.7

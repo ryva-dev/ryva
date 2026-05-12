@@ -197,3 +197,19 @@ def history(
 
 if __name__ == "__main__":
     app()
+
+@app.command()
+def eval(
+    agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Agent name (omit for all)"),
+    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+):
+    """Run LLM-as-judge evals for agents."""
+    from ryva.utils import find_project_root
+    from ryva.evaluator import run_evals
+    r = root or find_project_root()
+    ok = run_evals(r, agent)
+    raise typer.Exit(0 if ok else 1)
+
+
+if __name__ == "__main__":
+    app()
