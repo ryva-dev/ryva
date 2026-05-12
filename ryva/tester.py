@@ -45,7 +45,17 @@ def run_tests(root: Path, agent_name: str | None = None) -> bool:
 
 
 def _run_test_case(root, agent_name, test_type, input_data, expect, agent_def) -> tuple[bool, str]:
+    from ryva.plugins import get_test_plugin, load_plugins
+    load_plugins()
+
     try:
+        # Check for plugin test type first
+        plugin = get_test_plugin(test_type)
+        if plugin:
+            result = plugin(root, agent_name, input_data, expect, agent_def)
+            return result.get("passed", False), result.get("detail", "")
+
+        # Built-in test types
         if test_type == "schema":
             output = run_agent(root, agent_name, input_data)
             return _check_schema(output, expect)
@@ -70,7 +80,7 @@ def _run_test_case(root, agent_name, test_type, input_data, expect, agent_def) -
             return passed, f"Key '{key}' {'found' if passed else 'not found'}"
 
         else:
-            return False, f"Unknown test type: {test_type}"
+            return False, f"Unknown test type: '{test_type}'. Is a plugin missing?"
 
     except Exception as e:
         return False, str(e)
