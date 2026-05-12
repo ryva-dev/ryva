@@ -29,7 +29,7 @@ def scaffold(name: str, dest: Path) -> None:
 
     console.print(f"\n[bold green]✓ Project '{name}' created at {dest}[/bold green]")
     console.print(f"\nNext steps:")
-    console.print(f"  [cyan]cd {{dest.name}}[/cyan]")
+    console.print(f"  [cyan]cd {{name}}[/cyan]")
     console.print(f"  [cyan]export ANTHROPIC_API_KEY=your_key[/cyan]")
     console.print(f"  [cyan]ryva compile[/cyan]")
 
