@@ -2,7 +2,7 @@
 
 > The engineering framework for agentic AI.
 
-Ryva is to agentic AI what dbt is to data transformation — an opinionated, open-source framework that brings structure, testing, and documentation to the way engineers build and deploy AI agents.
+Ryva is an opinionated, open-source framework that brings structure, testing, and documentation to the way engineers build and deploy AI agents.
 
 ---
 
