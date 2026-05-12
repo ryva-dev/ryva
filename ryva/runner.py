@@ -1,11 +1,12 @@
 from __future__ import annotations
 import json
+import re
 import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
-from ryva.utils import load_manifest, resolve_env_vars, parse_ref, console
+from ryva.utils import load_manifest, parse_ref, console
 from rich.panel import Panel
 from rich.syntax import Syntax
 
@@ -29,22 +30,18 @@ def run_agent(root: Path, agent_name: str, input_data: dict) -> dict:
     prompt_text = _resolve_prompt(root, agent, input_data)
 
     # Resolve provider
-    provider, model, api_key = _resolve_provider(project, agent)
+    provider_name, model, provider = _resolve_provider(project, agent)
 
     # Call LLM
     start = time.time()
-    console.print(f"[dim]Calling {provider} / {model}...[/dim]")
+    console.print(f"[dim]Calling {provider_name} / {model}...[/dim]")
 
-    if provider == "anthropic":
-        result = _call_anthropic(api_key, model, prompt_text, project)
-    elif provider == "openai":
-        result = _call_openai(api_key, model, prompt_text, project)
-    else:
-        raise ValueError(f"Unsupported provider: {provider}")
+    max_tokens = project.get("runtime", {}).get("max_tokens", 4096)
+    result = provider.complete(prompt_text, model, max_tokens)
 
     elapsed = int((time.time() - start) * 1000)
 
-    # Try to parse JSON output
+    # Parse output
     output = _parse_output(result)
 
     # Log run
@@ -88,61 +85,24 @@ def _resolve_prompt(root: Path, agent: dict, input_data: dict) -> str:
     return template.render(input=input_data)
 
 
-def _resolve_provider(project: dict, agent: dict) -> tuple[str, str, str]:
+def _resolve_provider(project: dict, agent: dict):
+    from ryva.providers import get_provider
+
     providers = project.get("providers", {})
     default = providers.get("default", "anthropic")
     provider_cfg = providers.get(default, {})
 
-    model = model = agent.get("model") or provider_cfg.get("model", "claude-sonnet-4-5")
-    api_key = resolve_env_vars(provider_cfg.get("api_key", ""))
+    model = agent.get("model") or provider_cfg.get("model", "claude-sonnet-4-5")
+    provider = get_provider(default, provider_cfg)
 
-    return default, model, api_key
-
-
-def _call_anthropic(api_key: str, model: str, prompt: str, project: dict) -> str:
-    try:
-        import anthropic
-    except ImportError:
-        raise ImportError("Run: uv add anthropic")
-
-    import os
-    key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
-    client = anthropic.Anthropic(api_key=key)
-    max_tokens = project.get("runtime", {}).get("max_tokens", 4096)
-
-    msg = client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return msg.content[0].text
-
-
-def _call_openai(api_key: str, model: str, prompt: str, project: dict) -> str:
-    try:
-        import openai
-    except ImportError:
-        raise ImportError("Run: uv add openai")
-
-    import os
-    key = api_key or os.environ.get("OPENAI_API_KEY", "")
-    client = openai.OpenAI(api_key=key)
-    max_tokens = project.get("runtime", {}).get("max_tokens", 4096)
-
-    resp = client.chat.completions.create(
-        model=model,
-        max_tokens=max_tokens,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return resp.choices[0].message.content
+    return default, model, provider
 
 
 def _parse_output(text: str) -> dict:
-    import re
-    json_match = re.search(r'\{[\s\S]*\}', text)
-    if json_match:
+    match = re.search(r'\{[\s\S]*\}', text)
+    if match:
         try:
-            return json.loads(json_match.group())
+            return json.loads(match.group())
         except json.JSONDecodeError:
             pass
     return {"raw_output": text}
