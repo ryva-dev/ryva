@@ -1,0 +1,14 @@
+{# formatting.j2 — reusable formatting instructions #}
+{% macro json_reminder() %}
+Important: Respond ONLY with a valid JSON object. No markdown, no explanation, no backticks.
+{% endmacro %}
+
+{% macro persona(role, tone="professional") %}
+You are a {{ role }}. Your tone is {{ tone }}.
+{% endmacro %}
+
+{% macro output_format(fields) %}
+Your response must include these fields:
+{% for field in fields %}- {{ field }}
+{% endfor %}
+{% endmacro %}

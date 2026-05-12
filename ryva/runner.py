@@ -72,16 +72,39 @@ def _resolve_prompt(root: Path, agent: dict, input_data: dict) -> str:
     if not prompt_path.exists():
         raise FileNotFoundError(f"Prompt template not found: {prompt_path}")
 
-    macros_path = root / "macros"
+    # Build loader paths — prompts first, then macros
     loader_paths = [str(root / "prompts")]
+    macros_path = root / "macros"
     if macros_path.exists():
         loader_paths.append(str(macros_path))
 
     env = Environment(
         loader=FileSystemLoader(loader_paths),
-        keep_trailing_newline=True
+        keep_trailing_newline=True,
+        trim_blocks=True,
+        lstrip_blocks=True,
     )
-    template = env.get_template(f"{prompt_name}.j2")
+
+    # Auto-import all macros so they're available in every template
+    # Auto-import all macros so they're available in every template
+    macro_imports = []
+    if macros_path.exists():
+        for macro_file in macros_path.glob("*.j2"):
+            # Parse macro names from the file
+            import re
+            macro_text = macro_file.read_text()
+            names = re.findall(r'\{%-?\s*macro\s+(\w+)\s*\(', macro_text)
+            if names:
+                names_str = ", ".join(names)
+                macro_imports.append(
+                    f"{{% from '{macro_file.name}' import {names_str} %}}"
+                )
+
+    # Prepend macro imports to the template
+    raw = prompt_path.read_text()
+    full_template = "\n".join(macro_imports) + "\n" + raw
+
+    template = env.from_string(full_template)
     return template.render(input=input_data)
 
 
