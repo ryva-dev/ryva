@@ -1,0 +1,14 @@
+name: my-first-project
+version: 0.1.0
+providers:
+  default: anthropic
+  anthropic:
+    model: claude-sonnet-4-5
+    api_key: "{{ env_var('ANTHROPIC_API_KEY') }}"
+runtime:
+  max_tokens: 4096
+  timeout_ms: 10000
+  retries: 2
+targets:
+  dev:
+    type: local

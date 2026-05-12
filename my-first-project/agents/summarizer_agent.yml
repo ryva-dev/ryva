@@ -1,0 +1,26 @@
+name: summarizer_agent
+version: 1.0.0
+description: Summarizes a given piece of text into a concise output.
+prompt: ref(prompts/summarizer)
+tools: []
+input:
+  schema:
+    text:
+      type: str
+      required: true
+    max_sentences:
+      type: int
+      default: 3
+output:
+  schema:
+    summary:
+      type: str
+    word_count:
+      type: int
+memory:
+  strategy: none
+tags:
+- text
+- summarization
+meta:
+  owner: your-team

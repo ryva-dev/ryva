@@ -1,0 +1,14 @@
+name: word_counter
+version: 1.0.0
+description: Counts the number of words in a string.
+implementation: tools/word_counter.py
+function: run
+input:
+  schema:
+    text:
+      type: str
+      required: true
+output:
+  schema:
+    count:
+      type: int

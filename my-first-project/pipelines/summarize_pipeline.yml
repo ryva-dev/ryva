@@ -1,0 +1,15 @@
+name: summarize_pipeline
+description: Summarizes input text end-to-end.
+input:
+  schema:
+    text:
+      type: str
+      required: true
+steps:
+- name: summarize
+  agent: ref(agents/summarizer_agent)
+  input:
+    text: '{{ input.text }}'
+    max_sentences: 3
+output:
+  summary: '{{ steps.summarize.output.summary }}'
