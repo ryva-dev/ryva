@@ -59,6 +59,7 @@ def run(
     """Run an agent or pipeline locally."""
     from ryva.utils import find_project_root
     from ryva.runner import run_agent
+    from ryva.pipeline_runner import run_pipeline
     r = root or find_project_root()
 
     try:
@@ -70,7 +71,7 @@ def run(
     if agent:
         run_agent(r, agent, input_data)
     elif pipeline:
-        console.print("[yellow]Pipeline runner coming in Phase 2.[/yellow]")
+        run_pipeline(r, pipeline, input_data)
     else:
         console.print("[red]Provide --agent or --pipeline[/red]")
         raise typer.Exit(1)
@@ -79,14 +80,40 @@ def run(
 @app.command()
 def test(
     agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Agent name (omit for all)"),
+    pipeline: Optional[str] = typer.Option(None, "--pipeline", "-p", help="Pipeline name"),
     root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
 ):
-    """Run tests for agents."""
+    """Run tests for agents and pipelines."""
     from ryva.utils import find_project_root
     from ryva.tester import run_tests
+    from ryva.pipeline_tester import run_pipeline_tests
     r = root or find_project_root()
-    ok = run_tests(r, agent)
+
+    if pipeline:
+        ok = run_pipeline_tests(r, pipeline)
+    elif agent:
+        ok = run_tests(r, agent)
+    else:
+        agent_ok = run_tests(r, None)
+        pipeline_ok = run_pipeline_tests(r, None)
+        ok = agent_ok and pipeline_ok
+
     raise typer.Exit(0 if ok else 1)
+
+
+@app.command()
+def eval(
+    agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Agent name (omit for all)"),
+    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+):
+    """Run LLM-as-judge evals for agents."""
+    from ryva.utils import find_project_root
+    from ryva.evaluator import run_evals
+    r = root or find_project_root()
+    ok = run_evals(r, agent)
+    raise typer.Exit(0 if ok else 1)
+
+
 docs_app = typer.Typer(help="Documentation commands.")
 app.add_typer(docs_app, name="docs")
 
@@ -193,22 +220,6 @@ def history(
             f"{run.get('elapsed_ms', '?')}ms"
         )
     console.print(table)
-
-
-if __name__ == "__main__":
-    app()
-
-@app.command()
-def eval(
-    agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Agent name (omit for all)"),
-    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
-):
-    """Run LLM-as-judge evals for agents."""
-    from ryva.utils import find_project_root
-    from ryva.evaluator import run_evals
-    r = root or find_project_root()
-    ok = run_evals(r, agent)
-    raise typer.Exit(0 if ok else 1)
 
 
 if __name__ == "__main__":
