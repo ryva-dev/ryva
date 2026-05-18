@@ -1,0 +1,14 @@
+name: word_length_classifier
+version: "1.0.0"
+description: Classifies text as short, medium, or long based on word count.
+implementation: models/word_length_classifier.py
+function: load
+input:
+  schema:
+    text:
+      type: str
+      required: true
+output:
+  schema:
+    prediction:
+      type: str

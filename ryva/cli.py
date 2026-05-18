@@ -79,24 +79,29 @@ def run(
 
 @app.command()
 def test(
-    agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Agent name (omit for all)"),
+    agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Agent name"),
     pipeline: Optional[str] = typer.Option(None, "--pipeline", "-p", help="Pipeline name"),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="ML model name"),
     root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
 ):
-    """Run tests for agents and pipelines."""
+    """Run tests for agents, pipelines, and ML models."""
     from ryva.utils import find_project_root
     from ryva.tester import run_tests
     from ryva.pipeline_tester import run_pipeline_tests
+    from ryva.ml_tester import run_ml_tests
     r = root or find_project_root()
 
     if pipeline:
         ok = run_pipeline_tests(r, pipeline)
     elif agent:
         ok = run_tests(r, agent)
+    elif model:
+        ok = run_ml_tests(r, model)
     else:
         agent_ok = run_tests(r, None)
         pipeline_ok = run_pipeline_tests(r, None)
-        ok = agent_ok and pipeline_ok
+        ml_ok = run_ml_tests(r, None)
+        ok = agent_ok and pipeline_ok and ml_ok
 
     raise typer.Exit(0 if ok else 1)
 

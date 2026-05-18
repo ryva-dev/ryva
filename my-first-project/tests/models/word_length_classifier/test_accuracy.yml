@@ -1,0 +1,25 @@
+model: word_length_classifier
+type: accuracy
+
+cases:
+  - name: "short text classification"
+    inputs:
+      - "Hello world"
+      - "Hi there"
+      - "Good morning"
+    expected:
+      - short
+      - short
+      - short
+    threshold: 1.0
+
+  - name: "mixed length classification"
+    inputs:
+      - "The quick brown fox jumps over the lazy dog in the forest"
+      - "Hi"
+      - "This is a medium length sentence with about fifteen words total here"
+    expected:
+      - long
+      - short
+      - medium
+    threshold: 0.6
