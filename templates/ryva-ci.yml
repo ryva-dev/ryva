@@ -1,0 +1,45 @@
+# Ryva CI Template
+# Copy this file to .github/workflows/ryva.yml in your project
+# Add ANTHROPIC_API_KEY to your GitHub repo secrets
+# That's it — Ryva will run on every push and pull request
+
+name: Ryva CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ryva:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ryva
+        run: pip install ryva
+
+      - name: Compile
+        run: ryva compile
+
+      - name: Test
+        run: ryva test
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Generate docs
+        run: ryva docs generate
+
+      - name: Upload docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: ryva-docs
+          path: target/docs/

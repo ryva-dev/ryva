@@ -199,6 +199,28 @@ ryva history                            # Show recent run history
 | AWS Bedrock | 🔜 Coming in Phase 2 |
 
 ---
+## CI/CD Integration
+
+Add Ryva to your GitHub Actions pipeline in seconds. Create `.github/workflows/ryva.yml`:
+
+```yaml
+name: Ryva CI
+on: [push, pull_request]
+jobs:
+  ryva:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install ryva
+      - run: ryva compile
+      - run: ryva test
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+Add `ANTHROPIC_API_KEY` to your GitHub repo secrets and you're done. Ryva will validate and test your agents on every pull request.
+
+A full template with docs generation is available at [`templates/ryva-ci.yml`](templates/ryva-ci.yml).
 
 ## Roadmap
 
