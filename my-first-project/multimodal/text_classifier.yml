@@ -1,0 +1,6 @@
+name: text_classifier
+version: "1.0.0"
+description: "Classifies documents by content type."
+modality: document
+implementation: multimodal/text_classifier.py
+function: load

@@ -1,0 +1,6 @@
+model: text_classifier
+type: classification
+cases:
+  - name: code document classification
+    document: multimodal/sample_code.txt
+    expected: code

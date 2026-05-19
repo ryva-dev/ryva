@@ -78,20 +78,21 @@ def run(
 
 
 @app.command()
-@app.command()
 def test(
     agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Agent name"),
     pipeline: Optional[str] = typer.Option(None, "--pipeline", "-p", help="Pipeline name"),
     model: Optional[str] = typer.Option(None, "--model", "-m", help="ML model name"),
     vector: Optional[str] = typer.Option(None, "--vector", "-v", help="Vector store name"),
+    multimodal: Optional[str] = typer.Option(None, "--multimodal", help="Multimodal model name"),
     root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
 ):
-    """Run tests for agents, pipelines, ML models, and vector stores."""
+    """Run tests for agents, pipelines, ML models, vector stores, and multimodal models."""
     from ryva.utils import find_project_root
     from ryva.tester import run_tests
     from ryva.pipeline_tester import run_pipeline_tests
     from ryva.ml_tester import run_ml_tests
     from ryva.vector_tester import run_vector_tests
+    from ryva.multimodal_tester import run_multimodal_tests
     r = root or find_project_root()
 
     if pipeline:
@@ -102,12 +103,15 @@ def test(
         ok = run_ml_tests(r, model)
     elif vector:
         ok = run_vector_tests(r, vector)
+    elif multimodal:
+        ok = run_multimodal_tests(r, multimodal)
     else:
         agent_ok = run_tests(r, None)
         pipeline_ok = run_pipeline_tests(r, None)
         ml_ok = run_ml_tests(r, None)
         vector_ok = run_vector_tests(r, None)
-        ok = agent_ok and pipeline_ok and ml_ok and vector_ok
+        multimodal_ok = run_multimodal_tests(r, None)
+        ok = agent_ok and pipeline_ok and ml_ok and vector_ok and multimodal_ok
 
     raise typer.Exit(0 if ok else 1)
 
