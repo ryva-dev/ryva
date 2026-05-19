@@ -1,0 +1,6 @@
+name: doc_store
+version: "1.0.0"
+description: "Simple in-memory document store for testing."
+implementation: vector_stores/doc_store.py
+function: load
+provider: in-memory

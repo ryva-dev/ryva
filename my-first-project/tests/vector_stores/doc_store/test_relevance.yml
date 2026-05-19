@@ -1,0 +1,13 @@
+store: doc_store
+type: relevance
+
+cases:
+  - name: "ryva query relevance"
+    query: "agentic AI framework"
+    threshold: 0.1
+    top_k: 3
+
+  - name: "vector database query"
+    query: "vector embeddings semantic search"
+    threshold: 0.1
+    top_k: 3
