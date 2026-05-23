@@ -86,14 +86,47 @@ ryva docs serve
 ## What Ryva Can Test
 
 ```bash
-ryva test                          # Run everything
-ryva test --agent my_agent         # LLM agent tests
-ryva test --pipeline my_pipeline   # Multi-step pipeline tests
-ryva test --model my_model         # ML model tests (accuracy, drift, latency)
-ryva test --vector my_store        # Vector store tests (relevance, recall)
-ryva test --multimodal my_model    # Vision, document, audio model tests
-ryva eval --agent my_agent         # LLM-as-judge quality scoring
+ryva test                              # Run everything
+ryva test --agent my_agent             # LLM agent tests
+ryva test --pipeline my_pipeline       # Multi-step pipeline tests
+ryva test --model my_model             # ML model tests (accuracy, drift, latency)
+ryva test --vector my_store            # Vector store tests (relevance, recall)
+ryva test --multimodal my_model        # Vision, document, audio model tests
+ryva test --adversarial                # Adversarial and security tests
+ryva test --adversarial --categories prompt_injection,edge_cases,schema_breaking
+ryva eval --agent my_agent             # LLM-as-judge quality scoring
 ```
+
+### Adversarial Test Categories
+
+| Category | What It Tests |
+|---|---|
+| `prompt_injection` | Instruction override, system prompt leak, role switching |
+| `edge_cases` | Empty input, very long input, special characters, unicode, null bytes |
+| `schema_breaking` | Requests to change output format or inject extra fields |
+
+---
+
+## Cost Intelligence
+
+```bash
+ryva cost                              # Show cost report for this month
+ryva cost --month 2026-04              # Show cost for a specific month
+ryva compare my_agent --providers anthropic,openai,gemini,ollama
+ryva compat --agent my_agent           # Find cheapest model that passes all tests
+```
+
+Set budget limits in `project.yml`:
+
+```yaml
+budget:
+  monthly_limit_usd: 10.00
+  alert_threshold: 0.8
+  agents:
+    my_agent: 2.00
+```
+
+Ryva warns you when approaching your limit and blocks runs when exceeded.
 
 ---
 
@@ -227,7 +260,11 @@ ryva test --pipeline <name>               # Test a specific pipeline
 ryva test --model <name>                  # Test an ML model
 ryva test --vector <name>                 # Test a vector store
 ryva test --multimodal <name>             # Test a multimodal model
+ryva test --adversarial                   # Run adversarial and security tests
 ryva eval --agent <name>                  # Run LLM-as-judge evals
+ryva cost                                 # Show cost report
+ryva compare <agent> --providers a,b,c    # Compare across providers
+ryva compat --agent <name>                # Find cheapest compatible model
 ryva dag                                  # Show dependency graph
 ryva docs generate                        # Generate documentation
 ryva docs serve                           # Serve docs in browser
@@ -271,7 +308,8 @@ ryva history                              # Show run history
 - **Phase 3** ✅ — Ryva Cloud: hosted runtime, team dashboards, observability
 - **Phase 4** ✅ — Enterprise: teams, RBAC, audit logs, self-hosted, compliance
 - **Phase 5** ✅ — Pipeline, ML model, vector store, and multimodal testing
-- **Phase 6** 🔜 — RAG pipeline testing, fine-tune evaluation, model registry
+- **Phase 6** ✅ — Cost intelligence, provider comparison, adversarial testing
+- **Phase 7** 🔜 — RAG pipeline testing, fine-tune evaluation, model registry
 
 ---
 
