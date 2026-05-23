@@ -40,7 +40,7 @@ def run_tests(root: Path, agent_name: str | None = None) -> bool:
                 if not passed:
                     all_passed = False
 
-    _print_results(results)
+    _print_results(results, root)
     return all_passed
 
 
@@ -113,7 +113,7 @@ def _check_schema(output: dict, expect: dict) -> tuple[bool, str]:
     return True, "All schema checks passed"
 
 
-def _print_results(results: list):
+def _print_results(results: list, root: Path | None = None):
     console.print()
     table = Table(title="Test Results", show_header=True, header_style="bold")
     table.add_column("Agent", style="cyan")
@@ -132,3 +132,31 @@ def _print_results(results: list):
     console.print(table)
     color = "green" if passed == total else "red"
     console.print(f"\n[bold {color}]{passed}/{total} tests passed[/bold {color}]")
+
+    # Show cost for this test run
+    if root:
+        try:
+            from ryva.cost_tracker import get_cost_summary
+            from datetime import datetime, timezone
+            summary = get_cost_summary(root)
+            if summary["total_cost"] > 0:
+                console.print(
+                    f"[dim]Test run cost: ~${summary['total_cost']:.6f} this month "
+                    f"({summary['total_runs']} total runs)[/dim]"
+                )
+        except Exception:
+            pass
+
+    # Show cost for this test run
+    if root:
+        try:
+            from ryva.cost_tracker import get_cost_summary
+            from datetime import datetime, timezone
+            summary = get_cost_summary(root)
+            if summary["total_cost"] > 0:
+                console.print(
+                    f"[dim]Test run cost: ~${summary['total_cost']:.6f} this month "
+                    f"({summary['total_runs']} total runs)[/dim]"
+                )
+        except Exception:
+            pass

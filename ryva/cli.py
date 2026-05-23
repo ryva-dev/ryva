@@ -84,6 +84,8 @@ def test(
     model: Optional[str] = typer.Option(None, "--model", "-m", help="ML model name"),
     vector: Optional[str] = typer.Option(None, "--vector", "-v", help="Vector store name"),
     multimodal: Optional[str] = typer.Option(None, "--multimodal", help="Multimodal model name"),
+    adversarial: bool = typer.Option(False, "--adversarial", help="Run adversarial tests"),
+    categories: Optional[str] = typer.Option(None, "--categories", help="Adversarial categories: prompt_injection,edge_cases,schema_breaking"),
     root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
 ):
     """Run tests for agents, pipelines, ML models, vector stores, and multimodal models."""
@@ -93,9 +95,13 @@ def test(
     from ryva.ml_tester import run_ml_tests
     from ryva.vector_tester import run_vector_tests
     from ryva.multimodal_tester import run_multimodal_tests
+    from ryva.adversarial_tester import run_adversarial_tests
     r = root or find_project_root()
 
-    if pipeline:
+    if adversarial:
+        cats = categories.split(",") if categories else None
+        ok = run_adversarial_tests(r, agent, cats)
+    elif pipeline:
         ok = run_pipeline_tests(r, pipeline)
     elif agent:
         ok = run_tests(r, agent)

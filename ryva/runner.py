@@ -23,6 +23,15 @@ def run_agent(root: Path, agent_name: str, input_data: dict) -> dict:
     agent = agents[agent_name]
     project = manifest.get("project", {})
 
+    # Check budget before running
+    from ryva.cost_tracker import check_budget
+    budget_warnings = check_budget(root, project)
+    for warning in budget_warnings:
+        console.print(warning)
+    if any("EXCEEDED" in w for w in budget_warnings):
+        console.print("[dim]Run blocked due to budget limit. Update budget.monthly_limit_usd in project.yml to continue.[/dim]")
+        raise SystemExit(1)
+
     console.print(Panel(f"[bold cyan]Running agent:[/bold cyan] [bold]{agent_name}[/bold]", expand=False))
     console.print(f"[dim]Input: {json.dumps(input_data, indent=2)}[/dim]\n")
 
