@@ -236,6 +236,54 @@ def history(
         )
     console.print(table)
 
+@app.command()
+def cost(
+    month: Optional[str] = typer.Option(None, "--month", "-m", help="Month in YYYY-MM format (default: current)"),
+    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+):
+    """Show cost report for agents."""
+    from ryva.utils import find_project_root
+    from ryva.cost_tracker import show_cost_report
+    r = root or find_project_root()
+    show_cost_report(r, month)
+
+
+@app.command()
+def compare(
+    agent: str = typer.Argument(..., help="Agent name to compare"),
+    providers: str = typer.Option("anthropic,openai,gemini,ollama", "--providers", "-p", help="Comma separated providers"),
+    input: str = typer.Option("{}", "--input", "-i", help="JSON input string"),
+    runs: int = typer.Option(3, "--runs", "-n", help="Number of runs per provider"),
+    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+):
+    """Compare agent performance across LLM providers."""
+    from ryva.utils import find_project_root
+    from ryva.comparer import compare_providers
+    r = root or find_project_root()
+
+    try:
+        input_data = json.loads(input)
+    except json.JSONDecodeError:
+        console.print("[red]--input must be valid JSON[/red]")
+        raise typer.Exit(1)
+
+    provider_list = [p.strip() for p in providers.split(",")]
+    compare_providers(r, agent, input_data, provider_list, runs)
+
+
+@app.command()
+def compat(
+    agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Agent name (omit for all)"),
+    provider: str = typer.Option("anthropic", "--provider", "-p", help="Provider to test across model tiers"),
+    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+):
+    """Test agent compatibility across model sizes to find the cheapest that works."""
+    from ryva.utils import find_project_root
+    from ryva.compat_tester import run_compat_tests
+    r = root or find_project_root()
+    ok = run_compat_tests(r, agent, provider)
+    raise typer.Exit(0 if ok else 1)
+
 
 if __name__ == "__main__":
     app()

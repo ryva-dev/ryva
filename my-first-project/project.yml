@@ -12,3 +12,8 @@ runtime:
 targets:
   dev:
     type: local
+budget:
+  monthly_limit_usd: 10.00
+  alert_threshold: 0.8
+  agents:
+    summarizer_agent: 2.00
