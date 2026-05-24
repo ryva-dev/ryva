@@ -1,0 +1,15 @@
+base_model: claude-haiku-4-5-20251001
+fine_tuned_model: claude-sonnet-4-6
+provider: anthropic
+system_prompt: "You are a summarization assistant. Summarize concisely."
+
+cases:
+  - name: summarization quality
+    prompt: "Summarize this: Ryva is an open source framework for testing and documenting agentic AI systems."
+    metric: length
+    improvement_threshold: 0.1
+
+  - name: non empty response
+    prompt: "Summarize this: Machine learning models need proper evaluation pipelines."
+    metric: non_empty
+    improvement_threshold: 0.0

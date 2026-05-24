@@ -88,6 +88,7 @@ def test(
     rag: bool = typer.Option(False, "--rag", help="Run RAG pipeline tests"),
     regression: bool = typer.Option(False, "--regression", help="Run regression tests against baseline"),
     memory: bool = typer.Option(False, "--memory", help="Run memory and context retention tests"),
+    finetune: bool = typer.Option(False, "--finetune", help="Run fine-tune evaluation tests"),
     categories: Optional[str] = typer.Option(None, "--categories", help="Adversarial categories"),
     root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
 ):
@@ -103,6 +104,7 @@ def test(
     from ryva.rag_tester import run_rag_tests
     from ryva.regression_tester import run_regression_tests
     from ryva.memory_tester import run_memory_tests
+    from ryva.finetune_tester import run_finetune_tests
     r = root or find_project_root()
 
     if adversarial:
@@ -115,8 +117,9 @@ def test(
     elif regression:
         ok = run_regression_tests(r, agent)
     elif memory:
-        from ryva.memory_tester import run_memory_tests
         ok = run_memory_tests(r, agent)
+    elif finetune:
+        ok = run_finetune_tests(r, agent)
     elif pipeline:
         ok = run_pipeline_tests(r, pipeline)
     elif agent:
