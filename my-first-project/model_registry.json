@@ -1,0 +1,24 @@
+{
+  "models": {
+    "summarizer-haiku": {
+      "provider": "anthropic",
+      "model_id": "claude-haiku-4-5-20251001",
+      "version": "1.0.0",
+      "tags": [
+        "summarization",
+        "cheap"
+      ],
+      "registered_at": "2026-05-24T19:57:52.646557"
+    },
+    "summarizer-sonnet": {
+      "provider": "anthropic",
+      "model_id": "claude-sonnet-4-6",
+      "version": "1.0.0",
+      "tags": [
+        "summarization",
+        "quality"
+      ],
+      "registered_at": "2026-05-24T19:57:52.702905"
+    }
+  }
+}

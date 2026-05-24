@@ -330,6 +330,58 @@ def baseline(
     r = root or find_project_root()
     create_baseline(r, agent, label)
 
+registry_app = typer.Typer(help="Manage the model registry.")
+app.add_typer(registry_app, name="registry")
+
+
+@registry_app.command("list")
+def registry_list_cmd(root: Path = typer.Option(None, "--root", help="Project root")):
+    """List all registered models."""
+    from ryva.registry import registry_list
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    registry_list(r)
+
+
+@registry_app.command("add")
+def registry_add_cmd(
+    name: str = typer.Argument(..., help="Alias for the model"),
+    provider: str = typer.Option(..., "--provider", help="Provider name (anthropic, openai, etc)"),
+    model_id: str = typer.Option(..., "--model-id", help="Model ID string"),
+    version: str = typer.Option("1.0.0", "--version", help="Version tag"),
+    tags: str = typer.Option("", "--tags", help="Comma-separated tags"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Register a new model."""
+    from ryva.registry import registry_add
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+    registry_add(r, name, provider, model_id, version, tag_list)
+
+
+@registry_app.command("info")
+def registry_info_cmd(
+    name: str = typer.Argument(..., help="Model alias"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Show details for a registered model."""
+    from ryva.registry import registry_info
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    registry_info(r, name)
+
+
+@registry_app.command("remove")
+def registry_remove_cmd(
+    name: str = typer.Argument(..., help="Model alias to remove"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Remove a model from the registry."""
+    from ryva.registry import registry_remove
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    registry_remove(r, name)
 
 if __name__ == "__main__":
     app()
