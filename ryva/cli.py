@@ -383,5 +383,29 @@ def registry_remove_cmd(
     r = root or find_project_root()
     registry_remove(r, name)
 
+traces_app = typer.Typer(help="Inspect agent run traces.")
+app.add_typer(traces_app, name="traces")
+
+
+@traces_app.command("list")
+def traces_list_cmd(root: Path = typer.Option(None, "--root", help="Project root")):
+    """List all recorded traces."""
+    from ryva.tracer import traces_list
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    traces_list(r)
+
+
+@traces_app.command("show")
+def traces_show_cmd(
+    run_id: str = typer.Argument(..., help="Run ID to inspect"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Show full detail for a trace."""
+    from ryva.tracer import traces_show
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    traces_show(r, run_id)
+
 if __name__ == "__main__":
     app()

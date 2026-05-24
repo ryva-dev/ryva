@@ -42,21 +42,27 @@ def run_agent(root: Path, agent_name: str, input_data: dict) -> dict:
     provider_name, model, provider = _resolve_provider(project, agent)
 
     # Call LLM
+    # Start trace
+    from ryva.tracer import start_trace, add_step, finish_trace
+    trace = start_trace(root, agent_name, model, provider_name)
+    add_step(trace, "prompt", {"content": prompt_text})
+
+    # Call LLM
     start = time.time()
     console.print(f"[dim]Calling {provider_name} / {model}...[/dim]")
-
     max_tokens = project.get("runtime", {}).get("max_tokens", 4096)
     result = provider.complete(prompt_text, model, max_tokens)
-
     elapsed = int((time.time() - start) * 1000)
 
     # Parse output
     output = _parse_output(result)
 
-    # Log run
-    run_id = str(uuid.uuid4())[:8]
-    _save_run(root, run_id, agent_name, input_data, output, elapsed)
+    # Record response in trace
+    add_step(trace, "response", {"content": result, "duration_ms": elapsed})
+    run_id = finish_trace(root, trace)
 
+    # Log run
+    _save_run(root, run_id, agent_name, input_data, output, elapsed)
     console.print(f"\n[bold green]✓ Done[/bold green] in [cyan]{elapsed}ms[/cyan] [dim](run-id: {run_id})[/dim]\n")
     console.print(Panel(
         Syntax(json.dumps(output, indent=2), "json", theme="monokai"),
