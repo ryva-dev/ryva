@@ -229,3 +229,125 @@ def show_cost_report(root: Path, month: str | None = None):
                 console.print(w)
     except Exception:
         pass
+
+def get_cost_forecast(root: Path) -> dict:
+    """Project monthly spend based on current burn rate."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    days_elapsed = max(now.day, 1)
+    days_in_month = 30
+
+    summary = get_cost_summary(root)
+    total_cost = summary["total_cost"]
+    total_runs = summary["total_runs"]
+
+    daily_rate = total_cost / days_elapsed
+    projected_month = daily_rate * days_in_month
+    days_remaining = days_in_month - days_elapsed
+
+    # Load budget from project.yml
+    try:
+        from ryva.utils import find_project_root, load_yaml
+        project_yml = find_project_root(root) / "project.yml"
+        project = load_yaml(project_yml)
+        budget = project.get("budget", {})
+        monthly_limit = budget.get("monthly_limit_usd")
+    except Exception:
+        monthly_limit = None
+
+    days_until_exceeded = None
+    if monthly_limit and daily_rate > 0:
+        remaining_budget = monthly_limit - total_cost
+        if remaining_budget > 0:
+            days_until_exceeded = int(remaining_budget / daily_rate)
+        else:
+            days_until_exceeded = 0
+
+    forecast = {
+        "month": now.strftime("%Y-%m"),
+        "days_elapsed": days_elapsed,
+        "days_remaining": days_remaining,
+        "total_cost_so_far": round(total_cost, 6),
+        "daily_burn_rate": round(daily_rate, 6),
+        "projected_month_total": round(projected_month, 6),
+        "total_runs": total_runs,
+        "avg_cost_per_run": round(total_cost / total_runs, 6) if total_runs > 0 else 0,
+        "monthly_limit": monthly_limit,
+        "days_until_budget_exceeded": days_until_exceeded,
+    }
+
+    return forecast
+
+
+def show_forecast(root: Path):
+    forecast = get_cost_forecast(root)
+
+    console.print(Panel(
+        f"[bold cyan]Cost Forecast — {forecast['month']}[/bold cyan]",
+        expand=False
+    ))
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", justify="right")
+
+    table.add_row("Days elapsed", str(forecast["days_elapsed"]))
+    table.add_row("Days remaining", str(forecast["days_remaining"]))
+    table.add_row("Spent so far", f"${forecast['total_cost_so_far']:.6f}")
+    table.add_row("Daily burn rate", f"${forecast['daily_burn_rate']:.6f}/day")
+    table.add_row("Projected month total", f"${forecast['projected_month_total']:.6f}")
+    table.add_row("Avg cost per run", f"${forecast['avg_cost_per_run']:.6f}")
+
+    if forecast["monthly_limit"]:
+        table.add_row("Monthly limit", f"${forecast['monthly_limit']:.2f}")
+        pct = (forecast["total_cost_so_far"] / forecast["monthly_limit"]) * 100
+        table.add_row("Budget used", f"{pct:.1f}%")
+
+        if forecast["days_until_budget_exceeded"] is not None:
+            days = forecast["days_until_budget_exceeded"]
+            if days == 0:
+                table.add_row(
+                    "Budget status",
+                    "[bold red]EXCEEDED[/bold red]"
+                )
+            elif days <= 3:
+                table.add_row(
+                    "Days until exceeded",
+                    f"[bold red]{days} days[/bold red]"
+                )
+            elif days <= 7:
+                table.add_row(
+                    "Days until exceeded",
+                    f"[bold yellow]{days} days[/bold yellow]"
+                )
+            else:
+                table.add_row(
+                    "Days until exceeded",
+                    f"[green]{days} days[/green]"
+                )
+
+    console.print(table)
+
+    # Proactive alerts
+    if forecast["monthly_limit"]:
+        projected = forecast["projected_month_total"]
+        limit = forecast["monthly_limit"]
+        if projected > limit:
+            overage = projected - limit
+            console.print(
+                f"\n[bold red]⚠ FORECAST ALERT:[/bold red] "
+                f"At current burn rate you will exceed your budget by "
+                f"[red]${overage:.4f}[/red] this month."
+            )
+        elif projected > limit * 0.8:
+            console.print(
+                f"\n[bold yellow]⚠ FORECAST WARNING:[/bold yellow] "
+                f"Projected spend ${projected:.4f} is approaching your "
+                f"${limit:.2f} limit."
+            )
+        else:
+            console.print(
+                f"\n[green]✓ On track:[/green] "
+                f"Projected spend ${projected:.4f} is within your "
+                f"${limit:.2f} limit."
+            )

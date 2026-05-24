@@ -253,6 +253,15 @@ def cost(
     r = root or find_project_root()
     show_cost_report(r, month)
 
+@app.command()
+def forecast(
+    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+):
+    """Show cost forecast and budget projection for the current month."""
+    from ryva.utils import find_project_root
+    from ryva.cost_tracker import show_forecast
+    r = root or find_project_root()
+    show_forecast(r)
 
 @app.command()
 def compare(
