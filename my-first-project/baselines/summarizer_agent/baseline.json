@@ -1,0 +1,32 @@
+{
+  "agent": "summarizer_agent",
+  "label": "baseline",
+  "created_at": "2026-05-24T19:42:39.968954+00:00",
+  "cases": [
+    {
+      "name": "basic summarization",
+      "input": {
+        "text": "Ryva is a framework for building, testing, and deploying agentic AI systems. It brings the same engineering discipline to AI that dbt brought to data transformation.",
+        "max_sentences": 2
+      },
+      "baseline_output": {
+        "summary": "Ryva is a framework for building, testing, and deploying agentic AI systems, bringing engineering discipline to AI similar to how dbt standardized data transformation.",
+        "word_count": 26
+      },
+      "baseline_latency_ms": 2616,
+      "expect": {
+        "output.summary": {
+          "type": "str",
+          "min_length": 10
+        },
+        "output.word_count": {
+          "type": "int",
+          "range": [
+            1,
+            500
+          ]
+        }
+      }
+    }
+  ]
+}

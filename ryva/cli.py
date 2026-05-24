@@ -86,6 +86,7 @@ def test(
     adversarial: bool = typer.Option(False, "--adversarial", help="Run adversarial tests"),
     hallucination: bool = typer.Option(False, "--hallucination", help="Run hallucination detection"),
     rag: bool = typer.Option(False, "--rag", help="Run RAG pipeline tests"),
+    regression: bool = typer.Option(False, "--regression", help="Run regression tests against baseline"),
     categories: Optional[str] = typer.Option(None, "--categories", help="Adversarial categories"),
     root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
 ):
@@ -99,6 +100,7 @@ def test(
     from ryva.adversarial_tester import run_adversarial_tests
     from ryva.hallucination_detector import run_hallucination_tests
     from ryva.rag_tester import run_rag_tests
+    from ryva.regression_tester import run_regression_tests
     r = root or find_project_root()
 
     if adversarial:
@@ -108,6 +110,8 @@ def test(
         ok = run_hallucination_tests(r, agent)
     elif rag:
         ok = run_rag_tests(r, pipeline)
+    elif regression:
+        ok = run_regression_tests(r, agent)
     elif pipeline:
         ok = run_pipeline_tests(r, pipeline)
     elif agent:
@@ -305,6 +309,18 @@ def compat(
     r = root or find_project_root()
     ok = run_compat_tests(r, agent, provider)
     raise typer.Exit(0 if ok else 1)
+
+@app.command()
+def baseline(
+    agent: str = typer.Argument(..., help="Agent name to baseline"),
+    label: Optional[str] = typer.Option(None, "--label", "-l", help="Baseline label"),
+    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+):
+    """Create a baseline snapshot of agent outputs for regression testing."""
+    from ryva.utils import find_project_root
+    from ryva.regression_tester import create_baseline
+    r = root or find_project_root()
+    create_baseline(r, agent, label)
 
 
 if __name__ == "__main__":
