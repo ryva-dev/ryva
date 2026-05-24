@@ -411,5 +411,22 @@ def traces_show_cmd(
     r = root or find_project_root()
     traces_show(r, run_id)
 
+@app.command()
+def benchmark(
+    name: str = typer.Argument(None, help="Benchmark to run (summarization, qa, classification, coding)"),
+    model: str = typer.Option(None, "--model", help="Model to benchmark"),
+    provider: str = typer.Option(None, "--provider", help="Provider to use"),
+    list_all: bool = typer.Option(False, "--list", help="List available benchmarks"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Run standard benchmarks against your model."""
+    from ryva.benchmarker import run_benchmark, list_benchmarks
+    from ryva.utils import find_project_root
+    if list_all:
+        list_benchmarks()
+        return
+    r = root or find_project_root()
+    run_benchmark(r, name, model, provider)
+
 if __name__ == "__main__":
     app()
