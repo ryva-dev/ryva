@@ -1,0 +1,34 @@
+type: multi_turn
+cases:
+  - name: multi turn consistency
+    pass_threshold: 1.0
+    turns:
+      - input:
+          text: "Ryva is an open source AI testing framework."
+          max_sentences: 1
+        expect:
+          output.summary:
+            type: str
+            min_length: 5
+          output.word_count:
+            type: int
+
+      - input:
+          text: "The quick brown fox jumps over the lazy dog."
+          max_sentences: 1
+        expect:
+          output.summary:
+            type: str
+            min_length: 5
+          output.word_count:
+            type: int
+
+      - input:
+          text: "Machine learning models need proper testing and validation."
+          max_sentences: 1
+        expect:
+          output.summary:
+            type: str
+            min_length: 5
+          output.word_count:
+            type: int

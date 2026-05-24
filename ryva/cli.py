@@ -87,6 +87,7 @@ def test(
     hallucination: bool = typer.Option(False, "--hallucination", help="Run hallucination detection"),
     rag: bool = typer.Option(False, "--rag", help="Run RAG pipeline tests"),
     regression: bool = typer.Option(False, "--regression", help="Run regression tests against baseline"),
+    memory: bool = typer.Option(False, "--memory", help="Run memory and context retention tests"),
     categories: Optional[str] = typer.Option(None, "--categories", help="Adversarial categories"),
     root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
 ):
@@ -101,6 +102,7 @@ def test(
     from ryva.hallucination_detector import run_hallucination_tests
     from ryva.rag_tester import run_rag_tests
     from ryva.regression_tester import run_regression_tests
+    from ryva.memory_tester import run_memory_tests
     r = root or find_project_root()
 
     if adversarial:
@@ -112,6 +114,9 @@ def test(
         ok = run_rag_tests(r, pipeline)
     elif regression:
         ok = run_regression_tests(r, agent)
+    elif memory:
+        from ryva.memory_tester import run_memory_tests
+        ok = run_memory_tests(r, agent)
     elif pipeline:
         ok = run_pipeline_tests(r, pipeline)
     elif agent:
