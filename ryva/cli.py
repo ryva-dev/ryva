@@ -90,6 +90,7 @@ def test(
     memory: bool = typer.Option(False, "--memory", help="Run memory and context retention tests"),
     finetune: bool = typer.Option(False, "--finetune", help="Run fine-tune evaluation tests"),
     categories: Optional[str] = typer.Option(None, "--categories", help="Adversarial categories"),
+    fuzz: bool = typer.Option(False, "--fuzz", help="Run fuzzing tests"),
     root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
 ):
     """Run tests for agents, pipelines, ML models, vector stores, and multimodal models."""
@@ -105,6 +106,7 @@ def test(
     from ryva.regression_tester import run_regression_tests
     from ryva.memory_tester import run_memory_tests
     from ryva.finetune_tester import run_finetune_tests
+    from ryva.fuzzer import run_fuzz_tests
     r = root or find_project_root()
 
     if adversarial:
@@ -120,6 +122,8 @@ def test(
         ok = run_memory_tests(r, agent)
     elif finetune:
         ok = run_finetune_tests(r, agent)
+    elif fuzz:
+        ok = run_fuzz_tests(r, agent)
     elif pipeline:
         ok = run_pipeline_tests(r, pipeline)
     elif agent:
