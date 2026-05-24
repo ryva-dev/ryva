@@ -1,0 +1,13 @@
+pipeline: ryva_rag
+cases:
+  - name: basic RAG grounding
+    question: What does Ryva do?
+    context_docs:
+      - text: "Ryva is an open source framework for testing AI agents, pipelines, ML models, and vector stores."
+      - text: "Ryva provides a CLI with commands like ryva test, ryva run, and ryva compile."
+      - text: "Ryva generates documentation automatically from agent definitions."
+    expected_answer: "Ryva is a framework for testing AI agents"
+    thresholds:
+      retrieval_relevance: 0.1
+      faithfulness: 0.05
+      answer_quality: 0.01

@@ -1,0 +1,7 @@
+name: ryva_rag
+description: "RAG pipeline for Ryva documentation Q&A."
+retriever:
+  type: in_memory
+  top_k: 3
+generator:
+  agent: summarizer_agent

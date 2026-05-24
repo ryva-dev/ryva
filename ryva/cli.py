@@ -76,7 +76,6 @@ def run(
         console.print("[red]Provide --agent or --pipeline[/red]")
         raise typer.Exit(1)
 
-
 @app.command()
 def test(
     agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Agent name"),
@@ -86,6 +85,7 @@ def test(
     multimodal: Optional[str] = typer.Option(None, "--multimodal", help="Multimodal model name"),
     adversarial: bool = typer.Option(False, "--adversarial", help="Run adversarial tests"),
     hallucination: bool = typer.Option(False, "--hallucination", help="Run hallucination detection"),
+    rag: bool = typer.Option(False, "--rag", help="Run RAG pipeline tests"),
     categories: Optional[str] = typer.Option(None, "--categories", help="Adversarial categories"),
     root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
 ):
@@ -98,6 +98,7 @@ def test(
     from ryva.multimodal_tester import run_multimodal_tests
     from ryva.adversarial_tester import run_adversarial_tests
     from ryva.hallucination_detector import run_hallucination_tests
+    from ryva.rag_tester import run_rag_tests
     r = root or find_project_root()
 
     if adversarial:
@@ -105,6 +106,8 @@ def test(
         ok = run_adversarial_tests(r, agent, cats)
     elif hallucination:
         ok = run_hallucination_tests(r, agent)
+    elif rag:
+        ok = run_rag_tests(r, pipeline)
     elif pipeline:
         ok = run_pipeline_tests(r, pipeline)
     elif agent:
