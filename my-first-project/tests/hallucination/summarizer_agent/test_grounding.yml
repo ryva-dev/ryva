@@ -1,0 +1,15 @@
+check_type: factual_grounding
+cases:
+  - name: factual grounding check
+    input:
+      text: Ryva is an open source framework for testing AI agents built in Python.
+      max_sentences: 2
+    context: Ryva is an open source framework for testing AI agents built in Python.
+    threshold: 0.5
+
+  - name: self consistency check
+    input:
+      text: The quick brown fox jumps over the lazy dog.
+      max_sentences: 1
+    context: The quick brown fox jumps over the lazy dog.
+    threshold: 0.5

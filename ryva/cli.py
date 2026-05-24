@@ -85,7 +85,8 @@ def test(
     vector: Optional[str] = typer.Option(None, "--vector", "-v", help="Vector store name"),
     multimodal: Optional[str] = typer.Option(None, "--multimodal", help="Multimodal model name"),
     adversarial: bool = typer.Option(False, "--adversarial", help="Run adversarial tests"),
-    categories: Optional[str] = typer.Option(None, "--categories", help="Adversarial categories: prompt_injection,edge_cases,schema_breaking"),
+    hallucination: bool = typer.Option(False, "--hallucination", help="Run hallucination detection"),
+    categories: Optional[str] = typer.Option(None, "--categories", help="Adversarial categories"),
     root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
 ):
     """Run tests for agents, pipelines, ML models, vector stores, and multimodal models."""
@@ -96,11 +97,14 @@ def test(
     from ryva.vector_tester import run_vector_tests
     from ryva.multimodal_tester import run_multimodal_tests
     from ryva.adversarial_tester import run_adversarial_tests
+    from ryva.hallucination_detector import run_hallucination_tests
     r = root or find_project_root()
 
     if adversarial:
         cats = categories.split(",") if categories else None
         ok = run_adversarial_tests(r, agent, cats)
+    elif hallucination:
+        ok = run_hallucination_tests(r, agent)
     elif pipeline:
         ok = run_pipeline_tests(r, pipeline)
     elif agent:
