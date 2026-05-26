@@ -20,13 +20,23 @@ jobs:
       - name: Set up Python
         run: uv python install 3.11
 
-      - name: Install Ryva
-        run: pip install ryva
+      - name: Install Ryva from source
+        run: uv sync --extra dev
 
-      - name: Compile
-        run: ryva compile
+      - name: Lint
+        run: uv run ruff check ryva/
 
-      - name: Test
-        run: ryva test
+      - name: Run unit tests
+        run: uv run pytest tests/ --tb=short
+
+      - name: Compile project
+        run: |
+          cd my-first-project
+          uv run ryva compile
+
+      - name: Run tests
+        run: |
+          cd my-first-project
+          uv run ryva test
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
