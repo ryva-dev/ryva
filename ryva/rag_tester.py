@@ -4,7 +4,7 @@ from pathlib import Path
 
 from rich.table import Table
 
-from ryva.utils import console, load_yaml
+from ryva.utils import STOP_WORDS, console, load_yaml
 
 
 def run_rag_tests(root: Path, pipeline_name: str | None = None) -> bool:
@@ -86,6 +86,10 @@ def _run_rag_case(
         if retriever_impl:
             impl_path = root / retriever_impl
             if impl_path.exists():
+                console.print(
+                    f"[yellow]⚠ Executing retriever implementation:[/yellow] {impl_path}\n"
+                    "[dim]Retriever files run as Python code. Only load implementations you trust.[/dim]"
+                )
                 spec = importlib.util.spec_from_file_location("retriever", impl_path)
                 module = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(module)
@@ -160,11 +164,11 @@ def _score_retrieval(question: str, docs: list) -> float:
 
 
 def _score_faithfulness(answer: str, docs: list) -> float:
-    answer_words = set(answer.lower().split())
-    all_context_words = set()
+    answer_words = {w for w in answer.lower().split() if w not in STOP_WORDS}
+    all_context_words: set[str] = set()
     for doc in docs:
         text = doc.get("text", str(doc)).lower() if isinstance(doc, dict) else str(doc).lower()
-        all_context_words.update(text.split())
+        all_context_words.update(w for w in text.split() if w not in STOP_WORDS)
 
     if not answer_words:
         return 0.0
@@ -174,8 +178,8 @@ def _score_faithfulness(answer: str, docs: list) -> float:
 
 
 def _score_answer_quality(question: str, answer: str, expected: str) -> float:
-    answer_words = set(answer.lower().split())
-    expected_words = set(expected.lower().split())
+    answer_words = {w for w in answer.lower().split() if w not in STOP_WORDS}
+    expected_words = {w for w in expected.lower().split() if w not in STOP_WORDS}
 
     if not expected_words:
         return 1.0
@@ -186,8 +190,7 @@ def _score_answer_quality(question: str, answer: str, expected: str) -> float:
 
     if precision + recall == 0:
         return 0.0
-    f1 = 2 * (precision * recall) / (precision + recall)
-    return f1
+    return 2 * (precision * recall) / (precision + recall)
 
 
 def _score_context_utilization(answer: str, docs: list) -> float:

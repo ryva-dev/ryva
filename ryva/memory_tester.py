@@ -73,6 +73,8 @@ def _run_memory_case(
             return _test_context_retention(root, agent_name, case, project)
         elif test_type == "multi_turn":
             return _test_multi_turn(root, agent_name, case, project)
+        elif test_type == "sliding_window":
+            return _test_sliding_window(root, agent_name, case, project)
         else:
             return False, f"Unknown memory test type: {test_type}"
     except Exception as e:
@@ -216,6 +218,59 @@ def _test_multi_turn(
     if failed_turns:
         return passed, f"Failed: {failed_turns[0]}"
     return passed, f"{passed_turns}/{len(turns)} turns passed"
+
+
+def _test_sliding_window(
+    root: Path,
+    agent_name: str,
+    case: dict,
+    project: dict,
+) -> tuple[bool, str]:
+    """Test that an agent handles a long conversation using a sliding context window.
+
+    Each turn receives only the last `window_size` turns as history, simulating
+    real deployments that truncate context to fit token limits. The test verifies
+    the agent responds without error across all turns and that any `memory_check`
+    at the end still passes using only the windowed history.
+    """
+    turns = case.get("turns", [])
+    window_size = case.get("window_size", 5)
+    memory_check = case.get("memory_check", {})
+
+    if not turns:
+        return False, "No turns defined"
+
+    from ryva.runner import run_agent
+
+    window: list[dict] = []
+    outputs: list[dict] = []
+
+    for i, turn in enumerate(turns):
+        inp = dict(turn.get("input", {}))
+        inp["_context_window"] = window[-window_size:]
+
+        try:
+            output = run_agent(root, agent_name, inp)
+            outputs.append(output)
+            window.append({"turn": i + 1, "input": turn.get("input", {}), "output": output})
+        except Exception as e:
+            return False, f"Turn {i + 1} failed: {str(e)[:60]}"
+
+    if memory_check:
+        check_turn = memory_check.get("check_turn", -1)
+        check_output = outputs[check_turn] if outputs else {}
+        expected_key = memory_check.get("expected_key")
+        expected_value = memory_check.get("expected_value")
+
+        if expected_key and expected_key not in check_output:
+            return False, f"Memory check failed: '{expected_key}' not in output"
+
+        if expected_value:
+            actual = str(check_output.get(expected_key, "")).lower()
+            if expected_value.lower() not in actual:
+                return False, f"Memory check failed: expected '{expected_value}' in output"
+
+    return True, f"{len(turns)} turns with window_size={window_size}"
 
 
 def _print_results(results: list):

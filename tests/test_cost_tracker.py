@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 import pytest
 from pathlib import Path
-from ryva.cost_tracker import calculate_cost, load_runs, get_cost_summary, check_budget
+from ryva.cost_tracker import calculate_cost, check_budget, get_cost_summary, load_pricing, load_runs
 
 
 class TestCalculateCost:
@@ -191,3 +191,37 @@ class TestCheckBudget:
         }
         warnings = check_budget(tmp_path, project)
         assert any("summarizer" in w for w in warnings)
+
+
+class TestLoadPricing:
+    def test_returns_defaults_without_root(self):
+        pricing = load_pricing(None)
+        assert "anthropic" in pricing
+        assert "openai" in pricing
+
+    def test_returns_defaults_with_no_override_file(self, tmp_path):
+        pricing = load_pricing(tmp_path)
+        assert pricing["anthropic"]["claude-sonnet-4-5"]["input"] == pytest.approx(3.0)
+
+    def test_project_override_merges(self, tmp_path):
+        (tmp_path / "pricing.yml").write_text(
+            "anthropic:\n  claude-sonnet-4-5:\n    input: 1.00\n    output: 5.00\n"
+        )
+        pricing = load_pricing(tmp_path)
+        assert pricing["anthropic"]["claude-sonnet-4-5"]["input"] == pytest.approx(1.0)
+        # Other providers should still be present from defaults
+        assert "openai" in pricing
+
+    def test_calculate_cost_uses_custom_pricing(self, tmp_path):
+        custom = {"anthropic": {"claude-sonnet-4-5": {"input": 1.0, "output": 2.0}, "default": {"input": 1.0, "output": 2.0}}}
+        cost = calculate_cost("anthropic", "claude-sonnet-4-5", 1_000_000, 1_000_000, pricing=custom)
+        assert cost == pytest.approx(3.0)
+
+    def test_project_override_adds_new_provider(self, tmp_path):
+        (tmp_path / "pricing.yml").write_text(
+            "my-provider:\n  my-model:\n    input: 0.50\n    output: 2.00\n  default:\n    input: 0.50\n    output: 2.00\n"
+        )
+        pricing = load_pricing(tmp_path)
+        assert "my-provider" in pricing
+        cost = calculate_cost("my-provider", "my-model", 1_000_000, 0, pricing=pricing)
+        assert cost == pytest.approx(0.50)

@@ -6,8 +6,11 @@ from pathlib import Path
 from rich.panel import Panel
 from rich.table import Table
 
+from ryva.logger import get as get_logger
 from ryva.resolver import ProjectResolver
 from ryva.utils import console
+
+logger = get_logger("compiler")
 
 
 def compile_project(root: Path) -> bool:
@@ -16,6 +19,14 @@ def compile_project(root: Path) -> bool:
 
     resolver = ProjectResolver(root)
     resolver.resolve()
+    logger.info(
+        "project=%s agents=%d tools=%d pipelines=%d errors=%d",
+        root.name,
+        len(resolver.agents),
+        len(resolver.tools),
+        len(resolver.pipelines),
+        len(resolver.errors),
+    )
 
     # Summary table
     table = Table(show_header=True, header_style="bold")

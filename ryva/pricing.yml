@@ -1,0 +1,48 @@
+# Pricing per 1M tokens (input / output), as of 2026.
+# To override for your project, create a pricing.yml in your project root
+# using the same structure. Any provider/model you define will override
+# the corresponding entry here; omitted entries fall back to these defaults.
+
+anthropic:
+  claude-sonnet-4-5:
+    input: 3.00
+    output: 15.00
+  claude-haiku-4-5:
+    input: 0.80
+    output: 4.00
+  claude-opus-4-5:
+    input: 15.00
+    output: 75.00
+  default:
+    input: 3.00
+    output: 15.00
+
+openai:
+  gpt-4o:
+    input: 2.50
+    output: 10.00
+  gpt-4o-mini:
+    input: 0.15
+    output: 0.60
+  gpt-4-turbo:
+    input: 10.00
+    output: 30.00
+  default:
+    input: 2.50
+    output: 10.00
+
+gemini:
+  gemini-1.5-pro:
+    input: 1.25
+    output: 5.00
+  gemini-1.5-flash:
+    input: 0.075
+    output: 0.30
+  default:
+    input: 1.25
+    output: 5.00
+
+ollama:
+  default:
+    input: 0.00
+    output: 0.00

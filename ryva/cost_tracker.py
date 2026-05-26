@@ -34,13 +34,49 @@ PROVIDER_PRICING = {
 }
 
 
+def load_pricing(root: Path | None = None) -> dict:
+    """Load pricing config, with optional project-level override merged on top of defaults."""
+    base = PROVIDER_PRICING
+
+    if root:
+        override_path = root / "pricing.yml"
+        if override_path.exists():
+            try:
+                from ryva.utils import load_yaml
+                overrides = load_yaml(override_path)
+                if overrides:
+                    merged = {k: dict(v) for k, v in base.items()}
+                    for provider, models in overrides.items():
+                        if provider not in merged:
+                            merged[provider] = {}
+                        merged[provider].update(models)
+                    return merged
+            except (OSError, ValueError):
+                pass
+
+    # Fall back to the package-bundled pricing.yml
+    pkg_pricing = Path(__file__).parent / "pricing.yml"
+    if pkg_pricing.exists():
+        try:
+            from ryva.utils import load_yaml
+            data = load_yaml(pkg_pricing)
+            if data:
+                return data
+        except (OSError, ValueError):
+            pass
+
+    return base
+
+
 def calculate_cost(
     provider: str,
     model: str,
     input_tokens: int,
-    output_tokens: int
+    output_tokens: int,
+    pricing: dict | None = None,
 ) -> float:
-    provider_prices = PROVIDER_PRICING.get(provider, {})
+    table = pricing if pricing is not None else PROVIDER_PRICING
+    provider_prices = table.get(provider, {})
     model_prices = provider_prices.get(model) or provider_prices.get("default", {"input": 0, "output": 0})
     input_cost = (input_tokens / 1_000_000) * model_prices["input"]
     output_cost = (output_tokens / 1_000_000) * model_prices["output"]

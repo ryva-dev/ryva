@@ -4,17 +4,29 @@ import os
 from abc import ABC, abstractmethod
 
 
+def _estimate_tokens(text: str) -> int:
+    return max(1, int(len(text.split()) * 1.3))
+
+
 class BaseProvider(ABC):
-    @abstractmethod
     def complete(self, prompt: str, model: str, max_tokens: int) -> str:
-        pass
+        text, _ = self.complete_with_usage(prompt, model, max_tokens)
+        return text
+
+    @abstractmethod
+    def complete_with_usage(
+        self, prompt: str, model: str, max_tokens: int
+    ) -> tuple[str, dict]:
+        """Return (response_text, {"input_tokens": int, "output_tokens": int})."""
 
 
 class AnthropicProvider(BaseProvider):
     def __init__(self, api_key: str = ""):
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
 
-    def complete(self, prompt: str, model: str, max_tokens: int) -> str:
+    def complete_with_usage(
+        self, prompt: str, model: str, max_tokens: int
+    ) -> tuple[str, dict]:
         if not self.api_key:
             raise ValueError(
                 "ANTHROPIC_API_KEY is not set. "
@@ -29,16 +41,22 @@ class AnthropicProvider(BaseProvider):
         msg = client.messages.create(
             model=model,
             max_tokens=max_tokens,
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": prompt}],
         )
-        return msg.content[0].text
+        usage = {
+            "input_tokens": msg.usage.input_tokens,
+            "output_tokens": msg.usage.output_tokens,
+        }
+        return msg.content[0].text, usage
 
 
 class OpenAIProvider(BaseProvider):
     def __init__(self, api_key: str = ""):
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
 
-    def complete(self, prompt: str, model: str, max_tokens: int) -> str:
+    def complete_with_usage(
+        self, prompt: str, model: str, max_tokens: int
+    ) -> tuple[str, dict]:
         if not self.api_key:
             raise ValueError(
                 "OPENAI_API_KEY is not set. "
@@ -53,16 +71,22 @@ class OpenAIProvider(BaseProvider):
         resp = client.chat.completions.create(
             model=model,
             max_tokens=max_tokens,
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": prompt}],
         )
-        return resp.choices[0].message.content
+        usage = {
+            "input_tokens": resp.usage.prompt_tokens,
+            "output_tokens": resp.usage.completion_tokens,
+        }
+        return resp.choices[0].message.content, usage
 
 
 class OllamaProvider(BaseProvider):
     def __init__(self, base_url: str = "http://localhost:11434"):
         self.base_url = base_url
 
-    def complete(self, prompt: str, model: str, max_tokens: int) -> str:
+    def complete_with_usage(
+        self, prompt: str, model: str, max_tokens: int
+    ) -> tuple[str, dict]:
         try:
             import httpx
         except ImportError:
@@ -74,19 +98,28 @@ class OllamaProvider(BaseProvider):
                 "model": model,
                 "prompt": prompt,
                 "stream": False,
-                "options": {"num_predict": max_tokens}
+                "options": {"num_predict": max_tokens},
             },
-            timeout=120.0
+            timeout=120.0,
         )
         response.raise_for_status()
-        return response.json().get("response", "")
+        data = response.json()
+        text = data.get("response", "")
+        # Ollama returns token counts when stream=False
+        usage = {
+            "input_tokens": data.get("prompt_eval_count") or _estimate_tokens(prompt),
+            "output_tokens": data.get("eval_count") or _estimate_tokens(text),
+        }
+        return text, usage
 
 
 class GeminiProvider(BaseProvider):
     def __init__(self, api_key: str = ""):
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY", "")
 
-    def complete(self, prompt: str, model: str, max_tokens: int) -> str:
+    def complete_with_usage(
+        self, prompt: str, model: str, max_tokens: int
+    ) -> tuple[str, dict]:
         if not self.api_key:
             raise ValueError(
                 "GEMINI_API_KEY is not set. "
@@ -103,13 +136,19 @@ class GeminiProvider(BaseProvider):
             params={"key": self.api_key},
             json={
                 "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"maxOutputTokens": max_tokens}
+                "generationConfig": {"maxOutputTokens": max_tokens},
             },
-            timeout=60.0
+            timeout=60.0,
         )
         response.raise_for_status()
         data = response.json()
-        return data["candidates"][0]["content"]["parts"][0]["text"]
+        text = data["candidates"][0]["content"]["parts"][0]["text"]
+        meta = data.get("usageMetadata", {})
+        usage = {
+            "input_tokens": meta.get("promptTokenCount") or _estimate_tokens(prompt),
+            "output_tokens": meta.get("candidatesTokenCount") or _estimate_tokens(text),
+        }
+        return text, usage
 
 
 PROVIDERS = {
@@ -128,19 +167,11 @@ def get_provider(name: str, config: dict) -> BaseProvider:
 
     cls = PROVIDERS[name]
 
-    if name == "anthropic":
-        from ryva.utils import resolve_env_vars
-        api_key = resolve_env_vars(config.get("api_key", ""))
-        return cls(api_key=api_key)
-    elif name == "openai":
+    if name in ("anthropic", "openai", "gemini"):
         from ryva.utils import resolve_env_vars
         api_key = resolve_env_vars(config.get("api_key", ""))
         return cls(api_key=api_key)
     elif name == "ollama":
         return cls(base_url=config.get("base_url", "http://localhost:11434"))
-    elif name == "gemini":
-        from ryva.utils import resolve_env_vars
-        api_key = resolve_env_vars(config.get("api_key", ""))
-        return cls(api_key=api_key)
 
     return cls()

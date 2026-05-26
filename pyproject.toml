@@ -16,7 +16,6 @@ dependencies = [
     "anthropic>=0.25.0",
     "openai>=1.30.0",
     "markdown>=3.10.2",
-    "pyyaml>=6.0.3",
 ]
 
 [project.optional-dependencies]

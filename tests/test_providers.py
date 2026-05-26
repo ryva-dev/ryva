@@ -48,6 +48,12 @@ class TestAnthropicProvider:
         with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
             provider.complete("hello", "claude-sonnet-4-5", 100)
 
+    def test_empty_key_raises_on_complete_with_usage(self, monkeypatch):
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        provider = AnthropicProvider(api_key="")
+        with pytest.raises(ValueError, match="ANTHROPIC_API_KEY"):
+            provider.complete_with_usage("hello", "claude-sonnet-4-5", 100)
+
 
 class TestOpenAIProvider:
     def test_uses_env_key(self, monkeypatch):
@@ -65,6 +71,12 @@ class TestOpenAIProvider:
         provider = OpenAIProvider(api_key="")
         with pytest.raises(ValueError, match="OPENAI_API_KEY"):
             provider.complete("hello", "gpt-4o", 100)
+
+    def test_empty_key_raises_on_complete_with_usage(self, monkeypatch):
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        provider = OpenAIProvider(api_key="")
+        with pytest.raises(ValueError, match="OPENAI_API_KEY"):
+            provider.complete_with_usage("hello", "gpt-4o", 100)
 
 
 class TestOllamaProvider:
@@ -88,3 +100,9 @@ class TestGeminiProvider:
         provider = GeminiProvider(api_key="")
         with pytest.raises(ValueError, match="GEMINI_API_KEY"):
             provider.complete("hello", "gemini-1.5-pro", 100)
+
+    def test_empty_key_raises_on_complete_with_usage(self, monkeypatch):
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        provider = GeminiProvider(api_key="")
+        with pytest.raises(ValueError, match="GEMINI_API_KEY"):
+            provider.complete_with_usage("hello", "gemini-1.5-pro", 100)

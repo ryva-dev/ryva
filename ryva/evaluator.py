@@ -139,6 +139,10 @@ def _run_custom_scorer(
     if not full_path.exists():
         raise FileNotFoundError(f"Scorer not found: {full_path}")
 
+    console.print(
+        f"[yellow]⚠ Executing custom scorer:[/yellow] {full_path}\n"
+        "[dim]Custom scorer files run as Python code. Only use scorers you trust.[/dim]"
+    )
     spec = importlib.util.spec_from_file_location("scorer", full_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

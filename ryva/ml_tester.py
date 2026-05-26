@@ -95,6 +95,10 @@ def _load_model(root: Path, model_def: dict):
     if not impl_path.exists():
         raise FileNotFoundError(f"Model implementation not found: {impl_path}")
 
+    console.print(
+        f"[yellow]⚠ Executing model implementation:[/yellow] {impl_path}\n"
+        "[dim]Model implementation files run as Python code. Only load implementations you trust.[/dim]"
+    )
     spec = importlib.util.spec_from_file_location("ml_model", impl_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
