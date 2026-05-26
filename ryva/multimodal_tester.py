@@ -1,10 +1,12 @@
 from __future__ import annotations
-import time
+
 import importlib.util
-import base64
+import time
 from pathlib import Path
-from ryva.utils import load_yaml, console
+
 from rich.table import Table
+
+from ryva.utils import console, load_yaml
 
 
 def run_multimodal_tests(root: Path, model_name: str | None = None) -> bool:
@@ -152,7 +154,7 @@ def _run_vision_test(
 
         if expected_labels:
             found_labels = [d.get("label") for d in detections]
-            missing = [l for l in expected_labels if l not in found_labels]
+            missing = [label for label in expected_labels if label not in found_labels]
             if missing:
                 return False, f"Missing expected labels: {missing}"
 

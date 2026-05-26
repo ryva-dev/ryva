@@ -1,10 +1,13 @@
 from __future__ import annotations
-import time
+
 import importlib.util
 import json
+import time
 from pathlib import Path
-from ryva.utils import load_yaml, console
+
 from rich.table import Table
+
+from ryva.utils import console, load_yaml
 
 
 def run_ml_tests(root: Path, model_name: str | None = None) -> bool:

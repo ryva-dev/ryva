@@ -1,11 +1,13 @@
 from __future__ import annotations
-import json
-from pathlib import Path
-from datetime import datetime, timezone
-from ryva.utils import console
-from rich.table import Table
-from rich.panel import Panel
 
+import json
+from datetime import UTC, datetime
+from pathlib import Path
+
+from rich.panel import Panel
+from rich.table import Table
+
+from ryva.utils import console
 
 # Pricing per 1M tokens (input/output) as of 2026
 PROVIDER_PRICING = {
@@ -53,7 +55,7 @@ def load_runs(root: Path) -> list[dict]:
     for f in runs_dir.glob("*.json"):
         try:
             runs.append(json.loads(f.read_text()))
-        except Exception:
+        except (json.JSONDecodeError, OSError, ValueError):
             pass
     return runs
 
@@ -66,14 +68,14 @@ def load_pipeline_runs(root: Path) -> list[dict]:
     for f in runs_dir.glob("*.json"):
         try:
             runs.append(json.loads(f.read_text()))
-        except Exception:
+        except (json.JSONDecodeError, OSError, ValueError):
             pass
     return runs
 
 
 def get_cost_summary(root: Path, month: str | None = None) -> dict:
     runs = load_runs(root)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     current_month = month or now.strftime("%Y-%m")
 
     monthly_runs = [
@@ -219,7 +221,7 @@ def show_cost_report(root: Path, month: str | None = None):
 
     # Check budget
     try:
-        from ryva.utils import load_yaml, find_project_root
+        from ryva.utils import find_project_root, load_yaml
         project_yml = find_project_root(root) / "project.yml"
         project = load_yaml(project_yml)
         warnings = check_budget(root, project)
@@ -227,13 +229,13 @@ def show_cost_report(root: Path, month: str | None = None):
             console.print()
             for w in warnings:
                 console.print(w)
-    except Exception:
+    except (FileNotFoundError, OSError):
         pass
 
 def get_cost_forecast(root: Path) -> dict:
     """Project monthly spend based on current burn rate."""
-    from datetime import datetime, timezone
-    now = datetime.now(timezone.utc)
+    from datetime import datetime
+    now = datetime.now(UTC)
     days_elapsed = max(now.day, 1)
     days_in_month = 30
 
@@ -252,7 +254,7 @@ def get_cost_forecast(root: Path) -> dict:
         project = load_yaml(project_yml)
         budget = project.get("budget", {})
         monthly_limit = budget.get("monthly_limit_usd")
-    except Exception:
+    except (FileNotFoundError, OSError):
         monthly_limit = None
 
     days_until_exceeded = None

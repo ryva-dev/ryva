@@ -1,10 +1,10 @@
 from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import Optional
+
 import typer
 from rich.console import Console
-from rich.panel import Panel
 
 app = typer.Typer(
     name="ryva",
@@ -18,7 +18,7 @@ console = Console()
 @app.command()
 def init(
     name: str = typer.Argument(..., help="Project name"),
-    path: Optional[Path] = typer.Option(None, help="Where to create the project"),
+    path: Path | None = typer.Option(None, help="Where to create the project"),
 ):
     """Initialize a new Ryva project."""
     from ryva.init_project import scaffold
@@ -27,11 +27,11 @@ def init(
 
 @app.command()
 def compile(
-    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
 ):
     """Compile and validate all agents, tools, and pipelines."""
-    from ryva.utils import find_project_root
     from ryva.compiler import compile_project
+    from ryva.utils import find_project_root
     r = root or find_project_root()
     ok = compile_project(r)
     raise typer.Exit(0 if ok else 1)
@@ -39,27 +39,27 @@ def compile(
 
 @app.command()
 def dag(
-    agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Agent name (omit for all)"),
-    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+    agent: str | None = typer.Option(None, "--agent", "-a", help="Agent name (omit for all)"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
 ):
     """Show the dependency graph for agents."""
-    from ryva.utils import find_project_root
     from ryva.dag import show_dag
+    from ryva.utils import find_project_root
     r = root or find_project_root()
     show_dag(r, agent)
 
 
 @app.command()
 def run(
-    agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Agent name"),
-    pipeline: Optional[str] = typer.Option(None, "--pipeline", "-p", help="Pipeline name"),
+    agent: str | None = typer.Option(None, "--agent", "-a", help="Agent name"),
+    pipeline: str | None = typer.Option(None, "--pipeline", "-p", help="Pipeline name"),
     input: str = typer.Option("{}", "--input", "-i", help="JSON input string"),
-    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
 ):
     """Run an agent or pipeline locally."""
-    from ryva.utils import find_project_root
-    from ryva.runner import run_agent
     from ryva.pipeline_runner import run_pipeline
+    from ryva.runner import run_agent
+    from ryva.utils import find_project_root
     r = root or find_project_root()
 
     try:
@@ -78,35 +78,35 @@ def run(
 
 @app.command()
 def test(
-    agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Agent name"),
-    pipeline: Optional[str] = typer.Option(None, "--pipeline", "-p", help="Pipeline name"),
-    model: Optional[str] = typer.Option(None, "--model", "-m", help="ML model name"),
-    vector: Optional[str] = typer.Option(None, "--vector", "-v", help="Vector store name"),
-    multimodal: Optional[str] = typer.Option(None, "--multimodal", help="Multimodal model name"),
+    agent: str | None = typer.Option(None, "--agent", "-a", help="Agent name"),
+    pipeline: str | None = typer.Option(None, "--pipeline", "-p", help="Pipeline name"),
+    model: str | None = typer.Option(None, "--model", "-m", help="ML model name"),
+    vector: str | None = typer.Option(None, "--vector", "-v", help="Vector store name"),
+    multimodal: str | None = typer.Option(None, "--multimodal", help="Multimodal model name"),
     adversarial: bool = typer.Option(False, "--adversarial", help="Run adversarial tests"),
     hallucination: bool = typer.Option(False, "--hallucination", help="Run hallucination detection"),
     rag: bool = typer.Option(False, "--rag", help="Run RAG pipeline tests"),
     regression: bool = typer.Option(False, "--regression", help="Run regression tests against baseline"),
     memory: bool = typer.Option(False, "--memory", help="Run memory and context retention tests"),
     finetune: bool = typer.Option(False, "--finetune", help="Run fine-tune evaluation tests"),
-    categories: Optional[str] = typer.Option(None, "--categories", help="Adversarial categories"),
+    categories: str | None = typer.Option(None, "--categories", help="Adversarial categories"),
     fuzz: bool = typer.Option(False, "--fuzz", help="Run fuzzing tests"),
-    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
 ):
     """Run tests for agents, pipelines, ML models, vector stores, and multimodal models."""
-    from ryva.utils import find_project_root
-    from ryva.tester import run_tests
-    from ryva.pipeline_tester import run_pipeline_tests
-    from ryva.ml_tester import run_ml_tests
-    from ryva.vector_tester import run_vector_tests
-    from ryva.multimodal_tester import run_multimodal_tests
     from ryva.adversarial_tester import run_adversarial_tests
-    from ryva.hallucination_detector import run_hallucination_tests
-    from ryva.rag_tester import run_rag_tests
-    from ryva.regression_tester import run_regression_tests
-    from ryva.memory_tester import run_memory_tests
     from ryva.finetune_tester import run_finetune_tests
     from ryva.fuzzer import run_fuzz_tests
+    from ryva.hallucination_detector import run_hallucination_tests
+    from ryva.memory_tester import run_memory_tests
+    from ryva.ml_tester import run_ml_tests
+    from ryva.multimodal_tester import run_multimodal_tests
+    from ryva.pipeline_tester import run_pipeline_tests
+    from ryva.rag_tester import run_rag_tests
+    from ryva.regression_tester import run_regression_tests
+    from ryva.tester import run_tests
+    from ryva.utils import find_project_root
+    from ryva.vector_tester import run_vector_tests
     r = root or find_project_root()
 
     if adversarial:
@@ -147,12 +147,12 @@ def test(
 
 @app.command()
 def eval(
-    agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Agent name (omit for all)"),
-    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+    agent: str | None = typer.Option(None, "--agent", "-a", help="Agent name (omit for all)"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
 ):
     """Run LLM-as-judge evals for agents."""
-    from ryva.utils import find_project_root
     from ryva.evaluator import run_evals
+    from ryva.utils import find_project_root
     r = root or find_project_root()
     ok = run_evals(r, agent)
     raise typer.Exit(0 if ok else 1)
@@ -164,11 +164,11 @@ app.add_typer(docs_app, name="docs")
 
 @docs_app.command("generate")
 def docs_generate(
-    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
 ):
     """Generate markdown documentation for all agents and tools."""
-    from ryva.utils import find_project_root
     from ryva.docs import generate_docs
+    from ryva.utils import find_project_root
     r = root or find_project_root()
     generate_docs(r)
 
@@ -176,11 +176,11 @@ def docs_generate(
 @docs_app.command("serve")
 def docs_serve(
     port: int = typer.Option(8080, "--port", help="Port to serve on"),
-    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
 ):
     """Serve generated docs locally in your browser."""
-    from ryva.utils import find_project_root
     from ryva.docs import serve_docs
+    from ryva.utils import find_project_root
     r = root or find_project_root()
     serve_docs(r, port)
 
@@ -190,7 +190,7 @@ app.add_typer(list_app, name="list")
 
 
 @list_app.command("agents")
-def list_agents(root: Optional[Path] = typer.Option(None, "--root")):
+def list_agents(root: Path | None = typer.Option(None, "--root")):
     """List all agents in the project."""
     from ryva.utils import find_project_root, load_manifest
     r = root or find_project_root()
@@ -200,7 +200,7 @@ def list_agents(root: Optional[Path] = typer.Option(None, "--root")):
 
 
 @list_app.command("tools")
-def list_tools(root: Optional[Path] = typer.Option(None, "--root")):
+def list_tools(root: Path | None = typer.Option(None, "--root")):
     """List all tools in the project."""
     from ryva.utils import find_project_root, load_manifest
     r = root or find_project_root()
@@ -210,7 +210,7 @@ def list_tools(root: Optional[Path] = typer.Option(None, "--root")):
 
 
 @list_app.command("prompts")
-def list_prompts(root: Optional[Path] = typer.Option(None, "--root")):
+def list_prompts(root: Path | None = typer.Option(None, "--root")):
     """List all prompt templates in the project."""
     from ryva.utils import find_project_root
     r = root or find_project_root()
@@ -219,10 +219,10 @@ def list_prompts(root: Optional[Path] = typer.Option(None, "--root")):
 
 
 @app.command()
-def check(root: Optional[Path] = typer.Option(None, "--root")):
+def check(root: Path | None = typer.Option(None, "--root")):
     """Lint and validate the project without writing output."""
-    from ryva.utils import find_project_root
     from ryva.resolver import ProjectResolver
+    from ryva.utils import find_project_root
     r = root or find_project_root()
     resolver = ProjectResolver(r)
     ok = resolver.resolve()
@@ -237,11 +237,12 @@ def check(root: Optional[Path] = typer.Option(None, "--root")):
 @app.command()
 def history(
     n: int = typer.Option(10, "--last", help="Number of runs to show"),
-    root: Optional[Path] = typer.Option(None, "--root"),
+    root: Path | None = typer.Option(None, "--root"),
 ):
     """Show recent run history."""
-    from ryva.utils import find_project_root
     from rich.table import Table
+
+    from ryva.utils import find_project_root
     r = root or find_project_root()
     runs_dir = r / "logs" / "runs"
     if not runs_dir.exists():
@@ -267,22 +268,22 @@ def history(
 
 @app.command()
 def cost(
-    month: Optional[str] = typer.Option(None, "--month", "-m", help="Month in YYYY-MM format (default: current)"),
-    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+    month: str | None = typer.Option(None, "--month", "-m", help="Month in YYYY-MM format (default: current)"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
 ):
     """Show cost report for agents."""
-    from ryva.utils import find_project_root
     from ryva.cost_tracker import show_cost_report
+    from ryva.utils import find_project_root
     r = root or find_project_root()
     show_cost_report(r, month)
 
 @app.command()
 def forecast(
-    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
 ):
     """Show cost forecast and budget projection for the current month."""
-    from ryva.utils import find_project_root
     from ryva.cost_tracker import show_forecast
+    from ryva.utils import find_project_root
     r = root or find_project_root()
     show_forecast(r)
 
@@ -292,11 +293,11 @@ def compare(
     providers: str = typer.Option("anthropic,openai,gemini,ollama", "--providers", "-p", help="Comma separated providers"),
     input: str = typer.Option("{}", "--input", "-i", help="JSON input string"),
     runs: int = typer.Option(3, "--runs", "-n", help="Number of runs per provider"),
-    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
 ):
     """Compare agent performance across LLM providers."""
-    from ryva.utils import find_project_root
     from ryva.comparer import compare_providers
+    from ryva.utils import find_project_root
     r = root or find_project_root()
 
     try:
@@ -311,13 +312,13 @@ def compare(
 
 @app.command()
 def compat(
-    agent: Optional[str] = typer.Option(None, "--agent", "-a", help="Agent name (omit for all)"),
+    agent: str | None = typer.Option(None, "--agent", "-a", help="Agent name (omit for all)"),
     provider: str = typer.Option("anthropic", "--provider", "-p", help="Provider to test across model tiers"),
-    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
 ):
     """Test agent compatibility across model sizes to find the cheapest that works."""
-    from ryva.utils import find_project_root
     from ryva.compat_tester import run_compat_tests
+    from ryva.utils import find_project_root
     r = root or find_project_root()
     ok = run_compat_tests(r, agent, provider)
     raise typer.Exit(0 if ok else 1)
@@ -325,12 +326,12 @@ def compat(
 @app.command()
 def baseline(
     agent: str = typer.Argument(..., help="Agent name to baseline"),
-    label: Optional[str] = typer.Option(None, "--label", "-l", help="Baseline label"),
-    root: Optional[Path] = typer.Option(None, "--root", help="Project root"),
+    label: str | None = typer.Option(None, "--label", "-l", help="Baseline label"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
 ):
     """Create a baseline snapshot of agent outputs for regression testing."""
-    from ryva.utils import find_project_root
     from ryva.regression_tester import create_baseline
+    from ryva.utils import find_project_root
     r = root or find_project_root()
     create_baseline(r, agent, label)
 
@@ -420,7 +421,7 @@ def benchmark(
     root: Path = typer.Option(None, "--root", help="Project root"),
 ):
     """Run standard benchmarks against your model."""
-    from ryva.benchmarker import run_benchmark, list_benchmarks
+    from ryva.benchmarker import list_benchmarks, run_benchmark
     from ryva.utils import find_project_root
     if list_all:
         list_benchmarks()

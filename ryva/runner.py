@@ -1,14 +1,16 @@
 from __future__ import annotations
+
 import json
 import re
 import time
-import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+
 from jinja2 import Environment, FileSystemLoader
-from ryva.utils import load_manifest, parse_ref, console
 from rich.panel import Panel
 from rich.syntax import Syntax
+
+from ryva.utils import console, load_manifest, parse_ref
 
 
 def run_agent(root: Path, agent_name: str, input_data: dict) -> dict:
@@ -43,7 +45,7 @@ def run_agent(root: Path, agent_name: str, input_data: dict) -> dict:
 
     # Call LLM
     # Start trace
-    from ryva.tracer import start_trace, add_step, finish_trace
+    from ryva.tracer import add_step, finish_trace, start_trace
     trace = start_trace(root, agent_name, model, provider_name)
     add_step(trace, "prompt", {"content": prompt_text})
 
@@ -115,9 +117,8 @@ def _resolve_prompt(root: Path, agent: dict, input_data: dict) -> str:
                     f"{{% from '{macro_file.name}' import {names_str} %}}"
                 )
 
-    # Prepend macro imports to the template
     raw = prompt_path.read_text()
-    full_template = "\n".join(macro_imports) + "\n" + raw
+    full_template = "\n".join(macro_imports) + "\n" + raw if macro_imports else raw
 
     template = env.from_string(full_template)
     return template.render(input=input_data)
@@ -152,7 +153,7 @@ def _save_run(root: Path, run_id: str, agent: str, input_data: dict, output: dic
     run = {
         "run_id": run_id,
         "agent": agent,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "elapsed_ms": elapsed_ms,
         "input": input_data,
         "output": output,

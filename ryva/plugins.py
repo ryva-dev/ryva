@@ -1,9 +1,10 @@
 from __future__ import annotations
+
 import importlib
 import importlib.metadata
-from typing import Callable
-from ryva.utils import console
+from collections.abc import Callable
 
+from ryva.utils import console
 
 # Global registries
 _test_plugins: dict[str, Callable] = {}

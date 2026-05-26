@@ -1,10 +1,13 @@
 from __future__ import annotations
+
 import json
 from pathlib import Path
+
+from rich.panel import Panel
+from rich.table import Table
+
 from ryva.resolver import ProjectResolver
 from ryva.utils import console
-from rich.table import Table
-from rich.panel import Panel
 
 
 def compile_project(root: Path) -> bool:
@@ -12,7 +15,7 @@ def compile_project(root: Path) -> bool:
     console.print(f"[dim]Project root: {root}[/dim]\n")
 
     resolver = ProjectResolver(root)
-    success = resolver.resolve()
+    resolver.resolve()
 
     # Summary table
     table = Table(show_header=True, header_style="bold")
@@ -36,6 +39,6 @@ def compile_project(root: Path) -> bool:
     manifest = resolver.to_manifest()
     (target / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
-    console.print(f"[bold green]✓ Compiled successfully[/bold green]")
-    console.print(f"[dim]Manifest written to target/manifest.json[/dim]")
+    console.print("[bold green]✓ Compiled successfully[/bold green]")
+    console.print("[dim]Manifest written to target/manifest.json[/dim]")
     return True

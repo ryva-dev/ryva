@@ -1,9 +1,11 @@
 from __future__ import annotations
-import os
+
 import json
+import os
 from pathlib import Path
-from ruamel.yaml import YAML
+
 from rich.console import Console
+from ruamel.yaml import YAML
 
 console = Console()
 yaml = YAML()

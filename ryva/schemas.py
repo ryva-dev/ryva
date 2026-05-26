@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import Any, Optional
+
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -7,9 +9,9 @@ class FieldSchema(BaseModel):
     type: str
     required: bool = False
     default: Any = None
-    enum: Optional[list[str]] = None
-    min_length: Optional[int] = None
-    range: Optional[list[float]] = None
+    enum: list[str] | None = None
+    min_length: int | None = None
+    range: list[float] | None = None
 
 
 class IOSchema(BaseModel):
@@ -25,20 +27,20 @@ class MemoryConfig(BaseModel):
 
 class TestDefinition(BaseModel):
     type: str
-    threshold: Optional[int] = None
-    key: Optional[str] = None
-    scorer: Optional[str] = None
+    threshold: int | None = None
+    key: str | None = None
+    scorer: str | None = None
 
 
 class AgentSchema(BaseModel):
     name: str
     version: str = "1.0.0"
     description: str = ""
-    model: Optional[str] = None
-    prompt: Optional[str] = None
+    model: str | None = None
+    prompt: str | None = None
     tools: list[str] = Field(default_factory=list)
-    input: Optional[IOSchema] = None
-    output: Optional[IOSchema] = None
+    input: IOSchema | None = None
+    output: IOSchema | None = None
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     tags: list[str] = Field(default_factory=list)
     meta: dict[str, Any] = Field(default_factory=dict)
@@ -51,24 +53,24 @@ class ToolSchema(BaseModel):
     description: str = ""
     implementation: str
     function: str = "run"
-    input: Optional[IOSchema] = None
-    output: Optional[IOSchema] = None
+    input: IOSchema | None = None
+    output: IOSchema | None = None
     tests: list[TestDefinition] = Field(default_factory=list)
 
 
 class PipelineStep(BaseModel):
     name: str
-    agent: Optional[str] = None
-    tool: Optional[str] = None
-    input: Optional[dict[str, Any]] = None
+    agent: str | None = None
+    tool: str | None = None
+    input: dict[str, Any] | None = None
 
 
 class PipelineSchema(BaseModel):
     name: str
     description: str = ""
-    input: Optional[IOSchema] = None
+    input: IOSchema | None = None
     steps: list[PipelineStep] = Field(default_factory=list)
-    output: Optional[dict[str, str]] = None
+    output: dict[str, str] | None = None
 
 
 class ProviderConfig(BaseModel):
@@ -78,7 +80,7 @@ class ProviderConfig(BaseModel):
 
 class TargetConfig(BaseModel):
     type: str = "local"
-    project_id: Optional[str] = None
+    project_id: str | None = None
 
 
 class ProjectSchema(BaseModel):

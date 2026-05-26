@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import os
 from abc import ABC, abstractmethod
 
@@ -14,6 +15,11 @@ class AnthropicProvider(BaseProvider):
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
 
     def complete(self, prompt: str, model: str, max_tokens: int) -> str:
+        if not self.api_key:
+            raise ValueError(
+                "ANTHROPIC_API_KEY is not set. "
+                "Export it as an environment variable or set api_key in project.yml."
+            )
         try:
             import anthropic
         except ImportError:
@@ -33,6 +39,11 @@ class OpenAIProvider(BaseProvider):
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
 
     def complete(self, prompt: str, model: str, max_tokens: int) -> str:
+        if not self.api_key:
+            raise ValueError(
+                "OPENAI_API_KEY is not set. "
+                "Export it as an environment variable or set api_key in project.yml."
+            )
         try:
             import openai
         except ImportError:
@@ -76,6 +87,11 @@ class GeminiProvider(BaseProvider):
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY", "")
 
     def complete(self, prompt: str, model: str, max_tokens: int) -> str:
+        if not self.api_key:
+            raise ValueError(
+                "GEMINI_API_KEY is not set. "
+                "Export it as an environment variable or set api_key in project.yml."
+            )
         try:
             import httpx
         except ImportError:

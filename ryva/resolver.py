@@ -1,8 +1,11 @@
 from __future__ import annotations
+
 from pathlib import Path
-from ryva.utils import load_yaml, parse_ref, console
-from ryva.schemas import AgentSchema, ToolSchema, PipelineSchema, ProjectSchema
+
 from pydantic import ValidationError
+
+from ryva.schemas import AgentSchema, PipelineSchema, ProjectSchema, ToolSchema
+from ryva.utils import load_yaml, parse_ref
 
 
 class ProjectResolver:

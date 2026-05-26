@@ -1,12 +1,13 @@
 from __future__ import annotations
-import json
-import time
-from pathlib import Path
-from ryva.utils import load_manifest, load_yaml, console
-from ryva.cost_tracker import calculate_cost
-from rich.table import Table
-from rich.panel import Panel
 
+import json
+from pathlib import Path
+
+from rich.panel import Panel
+from rich.table import Table
+
+from ryva.cost_tracker import calculate_cost
+from ryva.utils import console, load_manifest, load_yaml
 
 # Model tiers from cheapest/smallest to most capable
 MODEL_TIERS = {
@@ -129,11 +130,13 @@ def _run_compat_case(
     model: str,
     project: dict
 ) -> tuple[bool, str, float]:
+    import re
+
+    from jinja2 import Environment, FileSystemLoader
+
     from ryva.providers import get_provider
     from ryva.tester import _check_schema
-    from jinja2 import Environment, FileSystemLoader
     from ryva.utils import parse_ref
-    import re
 
     try:
         # Resolve prompt

@@ -1,12 +1,13 @@
 from __future__ import annotations
+
 import json
 import uuid
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
-from rich.syntax import Syntax
+from rich.table import Table
 
 console = Console()
 

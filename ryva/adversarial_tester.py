@@ -1,11 +1,13 @@
 from __future__ import annotations
+
 import time
 from pathlib import Path
-from ryva.utils import load_manifest, load_yaml, console
-from ryva.runner import run_agent
-from rich.table import Table
-from rich.panel import Panel
 
+from rich.panel import Panel
+from rich.table import Table
+
+from ryva.runner import run_agent
+from ryva.utils import console, load_manifest, load_yaml
 
 # Built-in adversarial test cases
 ADVERSARIAL_INPUTS = {

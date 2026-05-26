@@ -1,16 +1,17 @@
 from __future__ import annotations
+
 import json
 import re
 from pathlib import Path
-from ryva.utils import load_manifest, load_yaml, console
-from ryva.runner import run_agent
-from rich.table import Table
-from rich.panel import Panel
 
+from rich.table import Table
+
+from ryva.runner import run_agent
+from ryva.utils import console, load_manifest, load_yaml
 
 HALLUCINATION_CHECKS = {
     "factual_grounding": """
-You are a hallucination detector. Your job is to check if the AI output 
+You are a hallucination detector. Your job is to check if the AI output
 contains any claims that are NOT supported by the provided context.
 
 Context provided to the agent:
@@ -55,7 +56,7 @@ Respond with JSON only:
 """,
 
     "citation_check": """
-You are checking if an AI response contains any fabricated citations, 
+You are checking if an AI response contains any fabricated citations,
 references, URLs, or sources.
 
 Agent output:
@@ -133,8 +134,6 @@ def _run_hallucination_case(
     check_type: str,
     project: dict
 ) -> tuple[bool, str, float]:
-    import anthropic
-    import os
 
     input_data = case.get("input", {})
     context = case.get("context", "")
@@ -192,8 +191,9 @@ def _run_hallucination_case(
 
 
 def _call_judge(prompt: str, project: dict) -> dict:
-    import anthropic
     import os
+
+    import anthropic
 
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     client = anthropic.Anthropic(api_key=api_key)

@@ -1,8 +1,11 @@
 from __future__ import annotations
+
 from pathlib import Path
-from ryva.utils import console
+
 from rich.panel import Panel
 from ruamel.yaml import YAML
+
+from ryva.utils import console
 
 yaml = YAML()
 yaml.default_flow_style = False
@@ -28,10 +31,10 @@ def scaffold(name: str, dest: Path) -> None:
     _write_readme(dest, name)
 
     console.print(f"\n[bold green]✓ Project '{name}' created at {dest}[/bold green]")
-    console.print(f"\nNext steps:")
-    console.print(f"  [cyan]cd {{name}}[/cyan]")
-    console.print(f"  [cyan]export ANTHROPIC_API_KEY=your_key[/cyan]")
-    console.print(f"  [cyan]ryva compile[/cyan]")
+    console.print("\nNext steps:")
+    console.print("  [cyan]cd {name}[/cyan]")
+    console.print("  [cyan]export ANTHROPIC_API_KEY=your_key[/cyan]")
+    console.print("  [cyan]ryva compile[/cyan]")
 
 
 def _write_project_yml(dest: Path, name: str):
@@ -56,7 +59,7 @@ def _write_project_yml(dest: Path, name: str):
     }
     with open(dest / "project.yml", "w") as f:
         yaml.dump(data, f)
-    console.print(f"  [dim]created project.yml[/dim]")
+    console.print("  [dim]created project.yml[/dim]")
 
 
 def _write_example_agent(dest: Path):
@@ -84,7 +87,7 @@ def _write_example_agent(dest: Path):
     }
     with open(dest / "agents" / "summarizer_agent.yml", "w") as f:
         yaml.dump(data, f)
-    console.print(f"  [dim]created agents/summarizer_agent.yml[/dim]")
+    console.print("  [dim]created agents/summarizer_agent.yml[/dim]")
 
 
 def _write_example_prompt(dest: Path):
@@ -101,7 +104,7 @@ def _write_example_prompt(dest: Path):
         "}\n"
     )
     (dest / "prompts" / "summarizer.j2").write_text(template)
-    console.print(f"  [dim]created prompts/summarizer.j2[/dim]")
+    console.print("  [dim]created prompts/summarizer.j2[/dim]")
 def _write_example_tool(dest: Path):
     data = {
         "name": "word_counter",
@@ -127,7 +130,7 @@ def _write_example_tool(dest: Path):
         "def run(text: str) -> dict:\n"
         "    return {'count': len(text.split())}\n"
     )
-    console.print(f"  [dim]created tools/word_counter.yml + tools/word_counter.py[/dim]")
+    console.print("  [dim]created tools/word_counter.yml + tools/word_counter.py[/dim]")
 
 
 def _write_example_pipeline(dest: Path):
@@ -150,7 +153,7 @@ def _write_example_pipeline(dest: Path):
     }
     with open(dest / "pipelines" / "summarize_pipeline.yml", "w") as f:
         yaml.dump(data, f)
-    console.print(f"  [dim]created pipelines/summarize_pipeline.yml[/dim]")
+    console.print("  [dim]created pipelines/summarize_pipeline.yml[/dim]")
 
 
 def _write_example_test(dest: Path):
@@ -173,14 +176,14 @@ def _write_example_test(dest: Path):
     }
     with open(dest / "tests" / "summarizer_agent" / "test_schema.yml", "w") as f:
         yaml.dump(data, f)
-    console.print(f"  [dim]created tests/summarizer_agent/test_schema.yml[/dim]")
+    console.print("  [dim]created tests/summarizer_agent/test_schema.yml[/dim]")
 
 
 def _write_gitignore(dest: Path):
     (dest / ".gitignore").write_text(
         "target/\nlogs/\n.env\n__pycache__/\n*.pyc\n.venv/\n"
     )
-    console.print(f"  [dim]created .gitignore[/dim]")
+    console.print("  [dim]created .gitignore[/dim]")
 
 
 def _write_readme(dest: Path, name: str):
@@ -212,4 +215,4 @@ def _write_readme(dest: Path, name: str):
         "```\n"
     )
     (dest / "README.md").write_text(content)
-    console.print(f"  [dim]created README.md[/dim]")
+    console.print("  [dim]created README.md[/dim]")

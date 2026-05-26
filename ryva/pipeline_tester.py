@@ -1,9 +1,12 @@
 from __future__ import annotations
+
 import time
 from pathlib import Path
-from ryva.utils import load_manifest, load_yaml, console
-from ryva.pipeline_runner import run_pipeline
+
 from rich.table import Table
+
+from ryva.pipeline_runner import run_pipeline
+from ryva.utils import console, load_manifest, load_yaml
 
 
 def run_pipeline_tests(root: Path, pipeline_name: str | None = None) -> bool:

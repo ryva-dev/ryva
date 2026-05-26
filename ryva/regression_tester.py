@@ -1,12 +1,15 @@
 from __future__ import annotations
+
 import json
 import time
+from datetime import UTC, datetime
 from pathlib import Path
-from datetime import datetime, timezone
-from ryva.utils import load_manifest, load_yaml, console
-from ryva.runner import run_agent
-from rich.table import Table
+
 from rich.panel import Panel
+from rich.table import Table
+
+from ryva.runner import run_agent
+from ryva.utils import console, load_manifest, load_yaml
 
 
 def run_regression_tests(
@@ -110,7 +113,7 @@ def create_baseline(
     baseline = {
         "agent": agent_name,
         "label": label or "baseline",
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "cases": cases
     }
 

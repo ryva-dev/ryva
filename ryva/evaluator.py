@@ -1,11 +1,12 @@
 from __future__ import annotations
-import json
-import importlib.util
-from pathlib import Path
-from ryva.utils import load_manifest, load_yaml, console
-from rich.table import Table
-from rich.panel import Panel
 
+import importlib.util
+import json
+from pathlib import Path
+
+from rich.table import Table
+
+from ryva.utils import console, load_manifest, load_yaml
 
 DEFAULT_RUBRIC = """
 You are an expert AI evaluator. Score the following agent output against the criteria below.
@@ -98,12 +99,10 @@ def _run_llm_scorer(
     threshold: float,
     manifest: dict,
 ) -> tuple[float, str, bool]:
-    import anthropic
     import os
 
-    project = manifest.get("project", {})
-    providers = project.get("providers", {})
-    provider_cfg = providers.get("anthropic", {})
+    import anthropic
+
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
 
     prompt = DEFAULT_RUBRIC.format(

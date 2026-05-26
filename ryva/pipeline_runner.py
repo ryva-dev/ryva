@@ -1,15 +1,18 @@
 from __future__ import annotations
+
 import json
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+
 from jinja2 import Environment
-from ryva.utils import load_manifest, parse_ref, console
-from ryva.runner import run_agent
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
+
+from ryva.runner import run_agent
+from ryva.utils import console, load_manifest, parse_ref
 
 
 def run_pipeline(root: Path, pipeline_name: str, input_data: dict) -> dict:
@@ -182,7 +185,7 @@ def _save_pipeline_run(
     run = {
         "run_id": run_id,
         "pipeline": pipeline,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "elapsed_ms": elapsed_ms,
         "input": input_data,
         "steps": steps,

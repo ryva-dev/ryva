@@ -1,9 +1,12 @@
 from __future__ import annotations
-import time
+
 import importlib.util
+import time
 from pathlib import Path
-from ryva.utils import load_yaml, console
+
 from rich.table import Table
+
+from ryva.utils import console, load_yaml
 
 
 def run_vector_tests(root: Path, store_name: str | None = None) -> bool:

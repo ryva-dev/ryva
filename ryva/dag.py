@@ -1,8 +1,11 @@
 from __future__ import annotations
+
 from pathlib import Path
-from ryva.utils import load_manifest, parse_ref, console
-from rich.tree import Tree
+
 from rich import print as rprint
+from rich.tree import Tree
+
+from ryva.utils import console, load_manifest, parse_ref
 
 
 def show_dag(root: Path, agent_name: str | None = None):

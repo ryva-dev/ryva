@@ -1,9 +1,12 @@
 from __future__ import annotations
+
 import time
 from pathlib import Path
-from ryva.utils import load_manifest, load_yaml, console
-from ryva.runner import run_agent
+
 from rich.table import Table
+
+from ryva.runner import run_agent
+from ryva.utils import console, load_manifest, load_yaml
 
 
 def run_tests(root: Path, agent_name: str | None = None) -> bool:
@@ -13,7 +16,7 @@ def run_tests(root: Path, agent_name: str | None = None) -> bool:
     targets = {agent_name: agents[agent_name]} if agent_name and agent_name in agents else agents
 
     if not targets:
-        console.print(f"[red]No agents found to test.[/red]")
+        console.print("[red]No agents found to test.[/red]")
         return False
 
     all_passed = True
@@ -133,30 +136,14 @@ def _print_results(results: list, root: Path | None = None):
     color = "green" if passed == total else "red"
     console.print(f"\n[bold {color}]{passed}/{total} tests passed[/bold {color}]")
 
-    # Show cost for this test run
     if root:
         try:
             from ryva.cost_tracker import get_cost_summary
-            from datetime import datetime, timezone
             summary = get_cost_summary(root)
             if summary["total_cost"] > 0:
                 console.print(
                     f"[dim]Test run cost: ~${summary['total_cost']:.6f} this month "
                     f"({summary['total_runs']} total runs)[/dim]"
                 )
-        except Exception:
-            pass
-
-    # Show cost for this test run
-    if root:
-        try:
-            from ryva.cost_tracker import get_cost_summary
-            from datetime import datetime, timezone
-            summary = get_cost_summary(root)
-            if summary["total_cost"] > 0:
-                console.print(
-                    f"[dim]Test run cost: ~${summary['total_cost']:.6f} this month "
-                    f"({summary['total_runs']} total runs)[/dim]"
-                )
-        except Exception:
+        except (FileNotFoundError, OSError):
             pass
