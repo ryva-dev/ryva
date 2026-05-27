@@ -1,8 +1,16 @@
 # Ryva
 
-> The engineering framework for agentic AI.
+Local-first testing, lineage, and cost controls for AI agents.
 
-Ryva brings structure, testing, observability, and compliance to the way teams build and ship AI systems. Every agent, prompt, pipeline, and model is a versioned, testable, documented artifact — and every production run leaves a tamper-evident audit trail.
+Ryva lets you define agents, prompts, tools, pipelines, tests, evals, and policies in your repo, then run them through a CLI workflow that feels closer to pytest/dbt than a hosted observability dashboard.
+
+Use it to:
+- catch prompt, model, tool, and pipeline regressions before deploy
+- hash and track prompt versions
+- compare outputs against baselines
+- trace every run with inputs, outputs, retrieval chunks, tool calls, tokens, and cost
+- enforce business rules as code
+- export lineage and governance artifacts when something needs to be explained
 
 ---
 
