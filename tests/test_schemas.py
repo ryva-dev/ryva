@@ -1,12 +1,13 @@
 from __future__ import annotations
+
 import pytest
 from pydantic import ValidationError
+
 from ryva.schemas import (
     AgentSchema,
     FieldSchema,
     IOSchema,
     PipelineSchema,
-    PipelineStep,
     ProjectSchema,
     TestDefinition,
     ToolSchema,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+
 import pytest
 
 from ryva.feedback import load_feedback, record_feedback, show_feedback_report

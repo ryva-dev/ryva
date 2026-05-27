@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import pytest
-
 from ryva.alignment import _apply_rule, check_output, load_policies
-
 
 # ---------------------------------------------------------------------------
 # _apply_rule

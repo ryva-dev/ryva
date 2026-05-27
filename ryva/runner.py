@@ -46,6 +46,18 @@ def run_agent(
         raise SystemExit(1)
 
     console.print(Panel(f"[bold cyan]Running agent:[/bold cyan] [bold]{agent_name}[/bold]", expand=False))
+
+    # Mask PII in input before logging or passing to prompt
+    from ryva.pii_masker import apply_if_enabled as _pii
+    safe_input, input_findings = _pii(json.dumps(input_data), project)
+    if input_findings:
+        console.print(f"[dim]PII masked in input: {len(input_findings)} item(s)[/dim]")
+        import json as _json
+        try:
+            input_data = _json.loads(safe_input)
+        except Exception:
+            pass
+
     console.print(f"[dim]Input: {json.dumps(input_data, indent=2)}[/dim]\n")
 
     # Resolve prompt and provider
@@ -106,6 +118,15 @@ def run_agent(
     # Persist lineage record
     from ryva.lineage import record as record_lineage
     record_lineage(root, trace)
+
+    # Mask PII in raw output before saving / displaying
+    masked_result, output_findings = _pii(result, project)
+    if output_findings:
+        console.print(f"[dim]PII masked in output: {len(output_findings)} item(s)[/dim]")
+        result = masked_result
+        output = _parse_output(result)
+        output_hash = hash_data(output)
+        trace["output_hash"] = output_hash
 
     # Auto alignment check against project policies (non-blocking warnings only)
     from ryva.alignment import check_output, load_policies

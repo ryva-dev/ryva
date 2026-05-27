@@ -8,7 +8,7 @@ from pathlib import Path
 from rich.table import Table
 
 from ryva.providers import get_provider
-from ryva.utils import STOP_WORDS, console, load_yaml
+from ryva.utils import console, load_yaml
 
 _METRICS = (
     "length",
@@ -113,16 +113,8 @@ def _score(
         expected = case.get("expected_output", "")
         if not expected:
             return 1.0
-        answer_words = {w for w in text.lower().split() if w not in STOP_WORDS}
-        expected_words = {w for w in expected.lower().split() if w not in STOP_WORDS}
-        if not expected_words:
-            return 1.0
-        overlap = answer_words & expected_words
-        precision = len(overlap) / len(answer_words) if answer_words else 0.0
-        recall = len(overlap) / len(expected_words) if expected_words else 0.0
-        if precision + recall == 0:
-            return 0.0
-        return 2 * (precision * recall) / (precision + recall)
+        from ryva.embeddings import semantic_similarity
+        return semantic_similarity(text, expected)
 
     elif metric == "instruction_following":
         must_include = case.get("must_include", [])

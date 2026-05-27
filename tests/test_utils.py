@@ -1,7 +1,8 @@
 from __future__ import annotations
+
 import pytest
-from pathlib import Path
-from ryva.utils import parse_ref, resolve_env_vars, find_project_root
+
+from ryva.utils import find_project_root, parse_ref, resolve_env_vars
 
 
 class TestParseRef:

@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-
-import pytest
 
 from ryva.lineage import (
     chain,
@@ -12,8 +9,8 @@ from ryva.lineage import (
     hash_data,
     record,
     search,
+    verify_record,
 )
-
 
 # ---------------------------------------------------------------------------
 # Hashing
@@ -223,3 +220,66 @@ class TestExportCompliance:
         record(tmp_path, t)
         export = export_compliance(tmp_path, "r01")
         assert "annual-report.pdf" in export["summary"]["retrieval_sources"]
+
+
+# ---------------------------------------------------------------------------
+# HMAC signature verification
+# ---------------------------------------------------------------------------
+
+class TestHmacSignature:
+    def test_record_includes_signature(self, tmp_path):
+        record(tmp_path, _make_trace("sig01"))
+        data = json.loads((tmp_path / "lineage" / "sig01.json").read_text())
+        assert "signature" in data
+        assert len(data["signature"]) == 64  # hex-encoded SHA-256
+
+    def test_verify_passes_for_fresh_record(self, tmp_path):
+        record(tmp_path, _make_trace("sig02"))
+        ok, detail = verify_record(tmp_path, "sig02")
+        assert ok is True
+        assert "valid" in detail.lower()
+
+    def test_verify_fails_for_missing_record(self, tmp_path):
+        ok, detail = verify_record(tmp_path, "ghost999")
+        assert ok is False
+        assert "not found" in detail.lower()
+
+    def test_verify_fails_after_tampering(self, tmp_path):
+        record(tmp_path, _make_trace("sig03"))
+        path = tmp_path / "lineage" / "sig03.json"
+        data = json.loads(path.read_text())
+        data["agent"] = "evil_agent"
+        path.write_text(json.dumps(data))
+        ok, detail = verify_record(tmp_path, "sig03")
+        assert ok is False
+        assert "tamper" in detail.lower() or "mismatch" in detail.lower()
+
+    def test_verify_no_signature_returns_false(self, tmp_path):
+        lineage_dir = tmp_path / "lineage"
+        lineage_dir.mkdir()
+        entry = {"run_id": "nosig", "agent": "a"}
+        (lineage_dir / "nosig.json").write_text(json.dumps(entry))
+        ok, detail = verify_record(tmp_path, "nosig")
+        assert ok is False
+        assert "signature" in detail.lower() or "predates" in detail.lower()
+
+    def test_signature_stable_across_calls(self, tmp_path):
+        trace = _make_trace("sig04")
+        record(tmp_path, trace)
+        ok1, _ = verify_record(tmp_path, "sig04")
+        ok2, _ = verify_record(tmp_path, "sig04")
+        assert ok1 is True
+        assert ok2 is True
+
+    def test_env_secret_used_when_set(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("RYVA_SECRET", "test-secret-key")
+        record(tmp_path, _make_trace("sig05"))
+        ok, _ = verify_record(tmp_path, "sig05")
+        assert ok is True
+
+    def test_different_secrets_produce_mismatch(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("RYVA_SECRET", "secret-a")
+        record(tmp_path, _make_trace("sig06"))
+        monkeypatch.setenv("RYVA_SECRET", "secret-b")
+        ok, _ = verify_record(tmp_path, "sig06")
+        assert ok is False

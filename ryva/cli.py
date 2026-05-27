@@ -91,6 +91,7 @@ def test(
     finetune: bool = typer.Option(False, "--finetune", help="Run fine-tune evaluation tests"),
     categories: str | None = typer.Option(None, "--categories", help="Adversarial categories"),
     fuzz: bool = typer.Option(False, "--fuzz", help="Run fuzzing tests"),
+    concurrency: int = typer.Option(10, "--concurrency", "-c", help="Parallel test workers (1-20, default 10)"),
     root: Path | None = typer.Option(None, "--root", help="Project root"),
 ):
     """Run tests for agents, pipelines, ML models, vector stores, and multimodal models."""
@@ -127,7 +128,7 @@ def test(
     elif pipeline:
         ok = run_pipeline_tests(r, pipeline)
     elif agent:
-        ok = run_tests(r, agent)
+        ok = run_tests(r, agent, concurrency=concurrency)
     elif model:
         ok = run_ml_tests(r, model)
     elif vector:
@@ -135,7 +136,7 @@ def test(
     elif multimodal:
         ok = run_multimodal_tests(r, multimodal)
     else:
-        agent_ok = run_tests(r, None)
+        agent_ok = run_tests(r, None, concurrency=concurrency)
         pipeline_ok = run_pipeline_tests(r, None)
         ml_ok = run_ml_tests(r, None)
         vector_ok = run_vector_tests(r, None)
@@ -474,6 +475,23 @@ def lineage_search_cmd(
     show_search(r, agent, since, status, limit)
 
 
+@lineage_app.command("verify")
+def lineage_verify_cmd(
+    run_id: str | None = typer.Argument(None, help="Run ID to verify (omit to verify all)"),
+    all_records: bool = typer.Option(False, "--all", help="Verify all lineage records"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Verify HMAC-SHA256 signatures on lineage records to detect tampering."""
+    from ryva.lineage import show_verify
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    ids = [] if (all_records or run_id is None) else [run_id]
+    if run_id and not all_records:
+        ids = [run_id]
+    ok = show_verify(r, ids)
+    raise typer.Exit(0 if ok else 1)
+
+
 @lineage_app.command("export")
 def lineage_export_cmd(
     run_id: str = typer.Argument(..., help="Run ID to export"),
@@ -515,14 +533,19 @@ app.add_typer(governance_app, name="governance")
 
 @governance_app.command("report")
 def governance_report_cmd(
-    out: Path | None = typer.Option(None, "--out", "-o", help="Save full JSON report to file"),
+    out: Path | None = typer.Option(None, "--out", "-o", help="Save full JSON report to extra file"),
     root: Path = typer.Option(None, "--root", help="Project root"),
 ):
-    """Generate a governance report: risk scores, EU AI Act checklist, AI bill of materials."""
+    """Generate a governance report: risk scores, EU AI Act checklist, AI bill of materials.
+
+    Exit codes: 0=all clear, 1=high-risk (tested), 2=high-risk untested (critical).
+    Always writes target/governance_report.json and target/governance_report.md.
+    """
     from ryva.governance import show_report
     from ryva.utils import find_project_root
     r = root or find_project_root()
-    show_report(r, out)
+    exit_code = show_report(r, out)
+    raise typer.Exit(exit_code)
 
 
 feedback_app = typer.Typer(help="Record and review outcome feedback for AI runs.")
@@ -554,6 +577,122 @@ def feedback_report_cmd(
     from ryva.utils import find_project_root
     r = root or find_project_root()
     show_feedback_report(r, agent)
+
+
+vision_app = typer.Typer(help="Vision model inference and annotation lineage.")
+app.add_typer(vision_app, name="vision")
+
+vision_lineage_app = typer.Typer(help="Vision lineage subcommands.")
+vision_app.add_typer(vision_lineage_app, name="lineage")
+
+
+@vision_lineage_app.command("show")
+def vision_lineage_show_cmd(
+    image_hash: str = typer.Argument(..., help="Image SHA-256 hash"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Show all inference and annotation records for an image hash."""
+    from ryva.utils import find_project_root
+    from ryva.vision_lineage import show_lineage
+    r = root or find_project_root()
+    show_lineage(r, image_hash)
+
+
+@vision_lineage_app.command("report")
+def vision_lineage_report_cmd(
+    out: Path | None = typer.Option(None, "--out", "-o", help="Save JSON report to file"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Generate a vision lineage summary report."""
+    from ryva.utils import find_project_root
+    from ryva.vision_lineage import show_vision_report
+    r = root or find_project_root()
+    show_vision_report(r, out)
+
+
+retrain_app = typer.Typer(help="Model drift monitoring and retraining triggers.")
+app.add_typer(retrain_app, name="retrain")
+
+
+@retrain_app.command("trigger")
+def retrain_trigger_cmd(
+    agent: str = typer.Argument(..., help="Agent name to retrain"),
+    trigger: str = typer.Option("manual", "--trigger", "-t",
+                                help="Trigger type: manual, drift, feedback, scheduled"),
+    reason: str = typer.Option("", "--reason", "-r", help="Reason for retraining"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Record a retraining trigger event for an agent."""
+    from ryva.retrainer import trigger_retraining
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    trigger_retraining(r, agent, trigger=trigger, reason=reason)
+
+
+@retrain_app.command("history")
+def retrain_history_cmd(
+    agent: str | None = typer.Option(None, "--agent", "-a", help="Filter by agent name"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Show retraining job history."""
+    from ryva.retrainer import show_history
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    show_history(r, agent)
+
+
+@retrain_app.command("drift")
+def retrain_drift_cmd(
+    agent: str = typer.Argument(..., help="Agent name to analyse"),
+    threshold: float = typer.Option(0.15, "--threshold", help="Drift threshold (default 0.15)"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Analyse quality score drift for an agent."""
+    from ryva.retrainer import show_drift
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    result = show_drift(r, agent, threshold=threshold)
+    raise typer.Exit(1 if result["drifted"] else 0)
+
+
+edge_app = typer.Typer(help="Edge device telemetry and inference monitoring.")
+app.add_typer(edge_app, name="edge")
+
+
+@edge_app.command("status")
+def edge_status_cmd(
+    device: str | None = typer.Option(None, "--device", "-d", help="Device ID (omit for all)"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Show edge telemetry status for a device or all devices."""
+    from ryva.edge import show_status
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    show_status(r, device)
+
+
+@edge_app.command("flush")
+def edge_flush_cmd(
+    device: str = typer.Argument(..., help="Device ID to flush"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Flush (delete) locally cached telemetry for a device after upload."""
+    from ryva.edge import flush_device
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    flush_device(r, device)
+
+
+@edge_app.command("report")
+def edge_report_cmd(
+    out: Path | None = typer.Option(None, "--out", "-o", help="Save JSON report to file"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Generate an aggregate edge fleet telemetry report."""
+    from ryva.edge import show_report as edge_show_report
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    edge_show_report(r, out)
 
 
 if __name__ == "__main__":

@@ -252,7 +252,121 @@ def _eu_ai_act_checklist(
     ]
 
 
-def show_report(root: Path, out: Path | None = None) -> None:
+def _compute_exit_code(report: dict) -> int:
+    """
+    Exit codes:
+      0 — no HIGH-risk systems (all clear)
+      1 — HIGH-risk systems exist but all are tested (warning)
+      2 — HIGH-risk systems exist that are untested (critical)
+    """
+    ra = report["risk_assessment"]
+    high_systems = set(ra.get("high_risk_systems", []))
+    untested = set(ra.get("untested_systems", []))
+
+    if not high_systems:
+        return 0
+    untested_high = high_systems & untested
+    if untested_high:
+        return 2
+    return 1
+
+
+def _write_files(root: Path, report: dict, extra_out: Path | None = None) -> None:
+    """Always write target/governance_report.{json,md}; optionally write extra_out."""
+    target = root / "target"
+    target.mkdir(exist_ok=True)
+
+    json_path = target / "governance_report.json"
+    json_path.write_text(json.dumps(report, indent=2))
+
+    md_path = target / "governance_report.md"
+    md_path.write_text(_render_markdown(report))
+
+    console.print(f"[dim]Reports written: {json_path.name}, {md_path.name}[/dim]")
+
+    if extra_out and extra_out != json_path:
+        extra_out.write_text(json.dumps(report, indent=2))
+        console.print(f"[green]✓ Full report also saved to {extra_out}[/green]")
+
+
+def _render_markdown(report: dict) -> str:
+    s = report["summary"]
+    risk = s["risk_distribution"]
+    ra = report["risk_assessment"]
+    checklist = report["eu_ai_act_checklist"]
+    bom = report["bill_of_materials"]
+
+    lines = [
+        f"# AI Governance Report — {report['project']}",
+        "",
+        f"Generated: {report['generated_at'][:19].replace('T', ' ')}  ",
+        f"Ryva version: {report['ryva_version']}",
+        "",
+        "## Summary",
+        "",
+        "| Metric | Value |",
+        "| --- | --- |",
+        f"| Total AI Systems | {s['total_ai_systems']} |",
+        f"| Agents | {s['agents']} |",
+        f"| Pipelines | {s['pipelines']} |",
+        f"| Tools | {s['tools']} |",
+        f"| HIGH Risk | {risk['HIGH']} |",
+        f"| MEDIUM Risk | {risk['MEDIUM']} |",
+        f"| LOW Risk | {risk['LOW']} |",
+        f"| Production Runs | {s['total_production_runs']} |",
+        f"| Feedback Entries | {s['feedback_entries']} |",
+        f"| Prompt Versions Tracked | {s['prompt_versions_tracked']} |",
+        f"| EU AI Act Compliance Score | {s['eu_ai_act_compliance_score']} |",
+        "",
+    ]
+
+    if ra["high_risk_systems"]:
+        lines += [
+            "## ⚠ High-Risk Systems",
+            "",
+            f"{', '.join(ra['high_risk_systems'])}",
+            "",
+        ]
+    if ra["untested_systems"]:
+        lines += [
+            "## ⚠ Untested Systems",
+            "",
+            f"{', '.join(ra['untested_systems'])}",
+            "",
+        ]
+
+    lines += [
+        "## EU AI Act Checklist",
+        "",
+        "| Article | Requirement | Status | Action |",
+        "| --- | --- | --- | --- |",
+    ]
+    for item in checklist:
+        lines.append(
+            f"| {item['article']} | {item['requirement']} "
+            f"| {item['status']} | {item.get('guidance', '')[:60]} |"
+        )
+
+    lines += [
+        "",
+        "## AI Bill of Materials",
+        "",
+        "| Name | Type | Model | Risk | Tested | Runs |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for entry in bom:
+        lines.append(
+            f"| {entry['name']} | {entry['type']} | {entry.get('model', '—')} "
+            f"| {entry.get('risk_level', '—')} "
+            f"| {'✓' if entry.get('tested') else '✗'} "
+            f"| {entry.get('total_production_runs', '—')} |"
+        )
+
+    return "\n".join(lines) + "\n"
+
+
+def show_report(root: Path, out: Path | None = None) -> int:
+    """Display the governance report and write output files. Returns exit code 0/1/2."""
     report = generate_report(root)
 
     s = report["summary"]
@@ -326,6 +440,6 @@ def show_report(root: Path, out: Path | None = None) -> None:
         )
     console.print(bom_table)
 
-    if out:
-        out.write_text(json.dumps(report, indent=2))
-        console.print(f"\n[green]✓ Full report saved to {out}[/green]")
+    _write_files(root, report, extra_out=out)
+    exit_code = _compute_exit_code(report)
+    return exit_code

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from rich.table import Table
 
-from ryva.utils import STOP_WORDS, console, load_yaml
+from ryva.utils import console, load_yaml
 
 
 def run_rag_tests(root: Path, pipeline_name: str | None = None) -> bool:
@@ -152,45 +152,28 @@ def _run_rag_case(
 
 
 def _score_retrieval(question: str, docs: list) -> float:
-    q_words = set(question.lower().split())
-    scores = []
-    for doc in docs:
-        text = doc.get("text", str(doc)).lower() if isinstance(doc, dict) else str(doc).lower()
-        doc_words = set(text.split())
-        overlap = len(q_words & doc_words)
-        score = overlap / (len(q_words) + 1e-9)
-        scores.append(min(score, 1.0))
+    from ryva.embeddings import batch_similarity
+    texts = [
+        doc.get("text", str(doc)) if isinstance(doc, dict) else str(doc)
+        for doc in docs
+    ]
+    scores = batch_similarity(question, texts)
     return sum(scores) / len(scores) if scores else 0.0
 
 
 def _score_faithfulness(answer: str, docs: list) -> float:
-    answer_words = {w for w in answer.lower().split() if w not in STOP_WORDS}
-    all_context_words: set[str] = set()
-    for doc in docs:
-        text = doc.get("text", str(doc)).lower() if isinstance(doc, dict) else str(doc).lower()
-        all_context_words.update(w for w in text.split() if w not in STOP_WORDS)
-
-    if not answer_words:
-        return 0.0
-
-    grounded = answer_words & all_context_words
-    return len(grounded) / len(answer_words)
+    from ryva.embeddings import batch_similarity
+    texts = [
+        doc.get("text", str(doc)) if isinstance(doc, dict) else str(doc)
+        for doc in docs
+    ]
+    scores = batch_similarity(answer, texts)
+    return sum(scores) / len(scores) if scores else 0.0
 
 
 def _score_answer_quality(question: str, answer: str, expected: str) -> float:
-    answer_words = {w for w in answer.lower().split() if w not in STOP_WORDS}
-    expected_words = {w for w in expected.lower().split() if w not in STOP_WORDS}
-
-    if not expected_words:
-        return 1.0
-
-    overlap = answer_words & expected_words
-    precision = len(overlap) / len(answer_words) if answer_words else 0
-    recall = len(overlap) / len(expected_words) if expected_words else 0
-
-    if precision + recall == 0:
-        return 0.0
-    return 2 * (precision * recall) / (precision + recall)
+    from ryva.embeddings import semantic_similarity
+    return semantic_similarity(answer, expected)
 
 
 def _score_context_utilization(answer: str, docs: list) -> float:

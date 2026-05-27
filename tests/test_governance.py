@@ -3,10 +3,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
-from ryva.governance import _eu_ai_act_checklist, _score_risk, generate_report
-
+from ryva.governance import (
+    _compute_exit_code,
+    _eu_ai_act_checklist,
+    _render_markdown,
+    _score_risk,
+    generate_report,
+    show_report,
+)
 
 # ---------------------------------------------------------------------------
 # Risk scoring
@@ -172,3 +176,113 @@ class TestGenerateReport:
         assert "/" in score
         parts = score.split("/")
         assert int(parts[0]) <= int(parts[1])
+
+
+# ---------------------------------------------------------------------------
+# Exit codes
+# ---------------------------------------------------------------------------
+
+class TestComputeExitCode:
+    def _report(self, high_systems=None, untested_systems=None):
+        return {
+            "risk_assessment": {
+                "high_risk_systems": high_systems or [],
+                "untested_systems": untested_systems or [],
+            }
+        }
+
+    def test_exit_0_when_no_high_risk(self):
+        assert _compute_exit_code(self._report()) == 0
+
+    def test_exit_1_when_high_risk_but_tested(self):
+        report = self._report(
+            high_systems=["fraud_detector"],
+            untested_systems=[],
+        )
+        assert _compute_exit_code(report) == 1
+
+    def test_exit_2_when_high_risk_untested(self):
+        report = self._report(
+            high_systems=["fraud_detector"],
+            untested_systems=["fraud_detector"],
+        )
+        assert _compute_exit_code(report) == 2
+
+    def test_exit_2_when_some_high_risk_untested(self):
+        report = self._report(
+            high_systems=["a", "b"],
+            untested_systems=["b"],
+        )
+        assert _compute_exit_code(report) == 2
+
+    def test_exit_1_all_high_risk_are_tested(self):
+        report = self._report(
+            high_systems=["a", "b"],
+            untested_systems=["c"],  # c is untested but not high-risk
+        )
+        assert _compute_exit_code(report) == 1
+
+
+# ---------------------------------------------------------------------------
+# Markdown rendering
+# ---------------------------------------------------------------------------
+
+class TestRenderMarkdown:
+    def test_contains_project_name(self, tmp_path):
+        _make_manifest(tmp_path)
+        report = generate_report(tmp_path)
+        md = _render_markdown(report)
+        assert "test-project" in md
+
+    def test_contains_checklist_section(self, tmp_path):
+        _make_manifest(tmp_path)
+        report = generate_report(tmp_path)
+        md = _render_markdown(report)
+        assert "EU AI Act Checklist" in md
+
+    def test_contains_bom_section(self, tmp_path):
+        _make_manifest(tmp_path)
+        report = generate_report(tmp_path)
+        md = _render_markdown(report)
+        assert "Bill of Materials" in md
+
+    def test_contains_summary_table(self, tmp_path):
+        _make_manifest(tmp_path)
+        report = generate_report(tmp_path)
+        md = _render_markdown(report)
+        assert "Summary" in md
+
+
+# ---------------------------------------------------------------------------
+# File output (show_report writes target/ files)
+# ---------------------------------------------------------------------------
+
+class TestShowReportFileOutput:
+    def test_writes_json_to_target(self, tmp_path):
+        _make_manifest(tmp_path)
+        show_report(tmp_path)
+        assert (tmp_path / "target" / "governance_report.json").exists()
+
+    def test_writes_md_to_target(self, tmp_path):
+        _make_manifest(tmp_path)
+        show_report(tmp_path)
+        assert (tmp_path / "target" / "governance_report.md").exists()
+
+    def test_json_is_valid(self, tmp_path):
+        _make_manifest(tmp_path)
+        show_report(tmp_path)
+        text = (tmp_path / "target" / "governance_report.json").read_text()
+        data = json.loads(text)
+        assert "summary" in data
+
+    def test_returns_exit_code_int(self, tmp_path):
+        _make_manifest(tmp_path)
+        code = show_report(tmp_path)
+        assert isinstance(code, int)
+        assert code in {0, 1, 2}
+
+    def test_extra_out_written_when_specified(self, tmp_path):
+        _make_manifest(tmp_path)
+        extra = tmp_path / "my_report.json"
+        show_report(tmp_path, out=extra)
+        assert extra.exists()

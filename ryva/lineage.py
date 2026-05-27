@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -12,6 +14,51 @@ from rich.tree import Tree
 from ryva.utils import console
 
 LINEAGE_DIR = "lineage"
+_SECRET_ENV = "RYVA_SECRET"
+_SECRET_FILE = ".ryva_secret"
+_SIG_FIELDS = (
+    "run_id", "parent_run_id", "trace_id", "agent", "model", "provider",
+    "prompt_hash", "input_hash", "output_hash", "started_at", "status",
+)
+
+
+# ---------------------------------------------------------------------------
+# HMAC signing helpers
+# ---------------------------------------------------------------------------
+
+def _load_secret(root: Path) -> bytes:
+    """Load signing secret from env var, project file, or derive a stable fallback."""
+    env_val = os.environ.get(_SECRET_ENV)
+    if env_val:
+        return env_val.encode()
+    secret_file = root / _SECRET_FILE
+    if secret_file.exists():
+        return secret_file.read_bytes().strip()
+    # Stable fallback: SHA-256 of the project root path (not cryptographically secure
+    # but ensures consistent signatures across calls without a configured secret)
+    return hashlib.sha256(str(root.resolve()).encode()).digest()
+
+
+def _sign(entry: dict, root: Path) -> str:
+    """Compute HMAC-SHA256 signature over canonical lineage fields."""
+    canonical = {k: entry.get(k) for k in _SIG_FIELDS}
+    payload = json.dumps(canonical, sort_keys=True, default=str).encode()
+    secret = _load_secret(root)
+    return hmac.new(secret, payload, hashlib.sha256).hexdigest()
+
+
+def verify_record(root: Path, run_id: str) -> tuple[bool, str]:
+    """Verify HMAC signature of a lineage record. Returns (ok, detail)."""
+    entry = _load_record(root, run_id)
+    if entry is None:
+        return False, f"Record not found: {run_id}"
+    stored_sig = entry.get("signature")
+    if not stored_sig:
+        return False, "No signature present — record predates tamper-evident lineage"
+    expected = _sign(entry, root)
+    if hmac.compare_digest(stored_sig, expected):
+        return True, "Signature valid"
+    return False, "Signature mismatch — record may have been tampered with"
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +104,7 @@ def record(root: Path, trace: dict) -> None:
         "retrieval_chunks": trace.get("retrieval_chunks", []),
         "tool_calls": trace.get("tool_calls", []),
     }
+    entry["signature"] = _sign(entry, root)
 
     (lineage_dir / f"{trace['run_id']}.json").write_text(json.dumps(entry, indent=2))
 
@@ -299,6 +347,31 @@ def show_search(
         )
 
     console.print(table)
+
+
+def show_verify(root: Path, run_ids: list[str]) -> bool:
+    """Verify signatures for given run IDs (or all if empty). Returns True if all pass."""
+    if not run_ids:
+        lineage_dir = root / LINEAGE_DIR
+        if not lineage_dir.exists():
+            console.print("[yellow]No lineage records found.[/yellow]")
+            return True
+        run_ids = [p.stem for p in sorted(lineage_dir.glob("*.json"))]
+
+    if not run_ids:
+        console.print("[yellow]No lineage records to verify.[/yellow]")
+        return True
+
+    all_ok = True
+    for rid in run_ids:
+        ok, detail = verify_record(root, rid)
+        if ok:
+            console.print(f"[green]✓[/green] {rid} — {detail}")
+        else:
+            console.print(f"[red]✗[/red] {rid} — {detail}")
+            all_ok = False
+
+    return all_ok
 
 
 def show_diff(root: Path, run_a: str, run_b: str) -> None:
