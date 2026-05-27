@@ -2,161 +2,48 @@
 
 > The engineering framework for agentic AI.
 
-Ryva is an opinionated, open-source framework that brings structure, testing, and documentation to the way engineers build and deploy AI systems.
+Ryva brings structure, testing, observability, and compliance to the way teams build and ship AI systems. Every agent, prompt, pipeline, and model is a versioned, testable, documented artifact — and every production run leaves a tamper-evident audit trail.
 
 ---
 
 ## Why Ryva?
 
-Building production AI systems today means managing scattered prompt files, undocumented agents, no test coverage, and zero visibility into how components depend on each other. Ryva fixes that.
+Building production AI today means wrestling with scattered prompt files, undocumented agents, no test coverage, no cost visibility, and zero traceability when something goes wrong. Ryva fixes all of it.
 
-With Ryva, every agent, model, pipeline, and vector store is a versioned, testable, documented file. Dependencies are explicit. Tests are built in. Docs generate automatically. And your whole project compiles before it runs.
-
----
-
-## Features
-
-- **Structured projects** — agents, prompts, tools, pipelines, ML models, and vector stores as first-class files
-- **`ref()` system** — explicit dependency resolution between all components
-- **Universal testing** — LLM agents, pipelines, ML models, vector stores, and multimodal models
-- **LLM-as-judge evals** — automated quality scoring for agent outputs
-- **Auto-generated docs** — always up to date, always shipped with your project
-- **DAG visualization** — see exactly how your components depend on each other
-- **Provider agnostic** — Anthropic, OpenAI, Ollama, Gemini supported today
-- **Plugin system** — extend Ryva with custom test types and providers
-- **Macro system** — reusable Jinja2 prompt components
-- **Local first** — works entirely offline, cloud deployment optional
+- Every component is a **typed, versioned file** — no more prompt sprawl
+- **Tests are built in** — schema, latency, adversarial, RAG, fine-tune, regression, and more
+- Every run writes a **cryptographically signed lineage record** you can audit
+- **EU AI Act compliance** is a single command, not a consulting engagement
+- Works entirely **offline and local-first** — cloud is optional
 
 ---
 
-## Quickstart
-
-### Install
+## Install
 
 ```bash
 pip install ryva
 ```
 
-### Initialize a project
+---
+
+## Quickstart
 
 ```bash
 ryva init my-ai-project
 cd my-ai-project
-```
-
-### Set your API key
-
-```bash
 export ANTHROPIC_API_KEY=your_key_here
-```
-
-### Compile
-
-```bash
 ryva compile
-```
-
-### Run an agent
-
-```bash
 ryva run --agent summarizer_agent --input '{"text": "Your text here"}'
-```
-
-### Run a pipeline
-
-```bash
-ryva run --pipeline summarize_pipeline --input '{"text": "Your text here"}'
-```
-
-### Run all tests
-
-```bash
 ryva test
-```
-
-### Generate docs
-
-```bash
 ryva docs generate
-ryva docs serve
 ```
 
 ---
 
-## What Ryva Can Test
+## What Ryva Covers
 
-```bash
-ryva test                              # Run everything
-ryva test --agent my_agent             # LLM agent tests
-ryva test --pipeline my_pipeline       # Multi-step pipeline tests
-ryva test --model my_model             # ML model tests (accuracy, drift, latency)
-ryva test --vector my_store            # Vector store tests (relevance, recall)
-ryva test --multimodal my_model        # Vision, document, audio model tests
-ryva test --adversarial                # Adversarial and security tests
-ryva test --adversarial --categories prompt_injection,edge_cases,schema_breaking
-ryva eval --agent my_agent             # LLM-as-judge quality scoring
-```
-
-### Adversarial Test Categories
-
-| Category | What It Tests |
-|---|---|
-| `prompt_injection` | Instruction override, system prompt leak, role switching |
-| `edge_cases` | Empty input, very long input, special characters, unicode, null bytes |
-| `schema_breaking` | Requests to change output format or inject extra fields |
-
----
-
-## Cost Intelligence
-
-```bash
-ryva cost                              # Show cost report for this month
-ryva cost --month 2026-04              # Show cost for a specific month
-ryva compare my_agent --providers anthropic,openai,gemini,ollama
-ryva compat --agent my_agent           # Find cheapest model that passes all tests
-```
-
-Set budget limits in `project.yml`:
-
-```yaml
-budget:
-  monthly_limit_usd: 10.00
-  alert_threshold: 0.8
-  agents:
-    my_agent: 2.00
-```
-
-Ryva warns you when approaching your limit and blocks runs when exceeded.
-
----
-
-## Project Structure
-
-```
-my-ai-project/
-├── agents/               # LLM agent definitions (.yml)
-├── prompts/              # Prompt templates (.j2)
-├── tools/                # Tool definitions (.yml) + implementations (.py)
-├── pipelines/            # Multi-agent pipelines (.yml)
-├── models/               # ML model definitions (.yml) + implementations (.py)
-├── vector_stores/        # Vector store definitions (.yml) + implementations (.py)
-├── multimodal/           # Vision/audio/document model definitions
-├── tests/                # All test cases
-│   ├── agents/
-│   ├── pipelines/
-│   ├── models/
-│   ├── vector_stores/
-│   └── multimodal/
-├── evals/                # LLM-as-judge eval scorers
-├── macros/               # Reusable Jinja2 prompt macros
-├── target/               # Compiled output (gitignored)
-├── logs/                 # Run history (gitignored)
-└── project.yml           # Project config
-```
-
----
-
-## Defining an Agent
+### Agents, Pipelines & Tools
+Define every AI component as a structured YAML file with explicit inputs, outputs, and dependencies. Compile validates the whole project before anything runs.
 
 ```yaml
 name: summarizer_agent
@@ -175,55 +62,262 @@ output:
       type: str
     word_count:
       type: int
-tags:
-  - text
-  - summarization
 ```
+
+### Testing
+Run tests in parallel across agents, pipelines, ML models, vector stores, and multimodal models.
+
+```bash
+ryva test                                              # Run everything (parallel, default 10 workers)
+ryva test --concurrency 5                              # Tune parallelism
+ryva test --agent my_agent                             # Single agent
+ryva test --adversarial                                # Adversarial + security
+ryva test --rag                                        # RAG pipeline evaluation
+ryva test --finetune                                   # Fine-tune evaluation
+ryva test --regression                                 # Regression against baseline
+ryva test --hallucination                              # Hallucination detection
+ryva test --memory                                     # Memory and context retention
+ryva test --fuzz                                       # Fuzz testing
+ryva eval --agent my_agent                             # LLM-as-judge quality scoring
+```
+
+Built-in test types for agents:
+
+| Type | What It Checks |
+|---|---|
+| `schema` | Field presence, types, ranges, minimum lengths |
+| `returns_non_empty` | Output is non-empty |
+| `contains_key` | Required keys are present |
+| `latency_under_ms` | Response time within threshold |
+
+### Semantic Similarity
+All RAG, fine-tune, and hallucination scoring uses **local semantic embeddings** (`all-MiniLM-L6-v2`) for meaningful quality scores — no external API calls required. Falls back to token-overlap F1 when the model is unavailable.
 
 ---
 
-## Testing an Agent
+## Tamper-Evident Lineage
 
-```yaml
-agent: ref(agents/summarizer_agent)
-type: schema
-cases:
-  - name: basic summarization
-    input:
-      text: "Ryva brings engineering discipline to agentic AI."
-      max_sentences: 2
-    expect:
-      output.summary:
-        type: str
-        min_length: 10
+Every production run writes a cryptographically signed lineage record. Signatures use HMAC-SHA256 over canonical record fields — any field tampering is immediately detectable.
+
+```bash
+ryva lineage show <run-id>           # Full chain with token counts, costs, prompt hashes
+ryva lineage search --agent my_agent --since 2026-05-01
+ryva lineage verify <run-id>         # Verify HMAC signature
+ryva lineage verify --all            # Audit every record in the project
+ryva lineage export <run-id> --out compliance.json
+ryva diff <run-id-a> <run-id-b>      # Compare two runs side by side
 ```
+
+Configure the signing secret:
+
+```bash
+export RYVA_SECRET=your-secret-key
+# or place it in .ryva_secret (automatically gitignored)
+```
+
+Lineage records capture: agent, model, provider, prompt template, prompt hash, input hash, output hash, token counts, cost, latency, retrieval chunks, tool calls, and parent run linkage for multi-agent chains.
 
 ---
 
-## Testing an ML Model
+## PII Masking
+
+Automatically detect and redact sensitive data before it reaches prompts or is written to logs.
 
 ```yaml
-model: my_model
-type: accuracy
-cases:
-  - name: classification accuracy
-    inputs: ["short text", "a much longer piece of text here"]
-    expected: ["short", "long"]
-    threshold: 0.9
+# project.yml
+project:
+  pii_masking:
+    enabled: true
+    entities: [ssn, credit_card, email, phone, ip_address]
+    mask: "[REDACTED]"
 ```
+
+Supported patterns: SSN, credit card, email, phone, IP address, passport number. Masking runs on both **input** (before prompt rendering) and **output** (before saving to logs).
 
 ---
 
-## Testing a Vector Store
+## Alignment Policies
+
+Define output rules in `project.yml` or `policies.yml` — Ryva checks every agent output automatically.
 
 ```yaml
-store: my_store
-type: relevance
-cases:
-  - name: semantic search relevance
-    query: "agentic AI framework"
-    threshold: 0.3
-    top_k: 5
+policies:
+  - name: no-profanity
+    check: keyword_forbidden
+    keywords: [badword1, badword2]
+    severity: error
+
+  - name: must-be-json
+    check: json_field_required
+    field: summary
+    severity: error
+
+  - name: length-check
+    check: max_length
+    max: 2000
+    severity: warning
+```
+
+```bash
+ryva align                    # Check all agents against policies
+ryva align --agent my_agent   # Check a specific agent
+```
+
+Rule types: `keyword_forbidden`, `must_contain`, `must_contain_pattern`, `max_length`, `min_length`, `json_field_required`, `json_field_forbidden`.
+
+---
+
+## AI Governance & EU AI Act Compliance
+
+```bash
+ryva governance report                     # Full compliance report
+ryva governance report --out report.json   # Save machine-readable output
+```
+
+Always writes `target/governance_report.json` and `target/governance_report.md`. Exit codes suitable for CI gating:
+
+| Exit Code | Meaning |
+|---|---|
+| `0` | No high-risk systems — all clear |
+| `1` | High-risk systems exist but are tested |
+| `2` | High-risk systems exist that are **untested** — critical |
+
+The report includes:
+- **EU AI Act checklist** (Articles 9–15): risk management, data provenance, audit logs, documentation, human oversight, adversarial testing, explainability, feedback monitoring, bias testing, policy enforcement
+- **AI Bill of Materials**: every agent and pipeline with risk level, test coverage, production run count, and prompt hash
+- **Risk distribution**: HIGH / MEDIUM / LOW classification based on domain keywords (medical, financial, legal, biometric, etc.)
+
+---
+
+## Outcome Feedback
+
+Close the loop between production runs and model quality.
+
+```bash
+ryva feedback record --run-id abc123 --outcome correct --note "nailed it" --annotator alice
+ryva feedback report                     # Accuracy metrics by agent
+ryva feedback report --agent my_agent
+```
+
+Outcomes: `correct`, `incorrect`, `partial`, `unknown`.
+
+---
+
+## Drift Monitoring & Retraining
+
+Track output quality over time and detect when a model starts degrading.
+
+```bash
+ryva retrain drift my_agent              # Analyse quality score drift
+ryva retrain drift my_agent --threshold 0.10
+ryva retrain trigger my_agent --trigger drift --reason "score drop detected"
+ryva retrain history                     # All retraining jobs
+ryva retrain history --agent my_agent
+```
+
+`DriftMonitor` compares recent scores to a baseline window using a sliding-window mean. The `drift` command exits `1` when drift is detected — wire it directly into CI.
+
+Trigger types: `manual`, `drift`, `feedback`, `scheduled`.
+
+---
+
+## Edge Telemetry
+
+Collect inference telemetry from edge devices for fleet-wide monitoring.
+
+```bash
+ryva edge status                         # All devices
+ryva edge status --device device-01      # Single device
+ryva edge report                         # Aggregate fleet report
+ryva edge report --out edge.json
+ryva edge flush device-01                # Clear local cache after upload
+```
+
+Each device tracks: latency, token counts, error rate, agent breakdown, and timestamps.
+
+---
+
+## Vision Lineage
+
+Record and audit vision model inference results alongside human annotations.
+
+```bash
+ryva vision lineage show sha256:abc123   # All records for an image hash
+ryva vision lineage report               # Fleet-wide vision summary
+ryva vision lineage report --out vision.json
+```
+
+`compute_agreement()` scores inference vs. annotation label alignment using semantic similarity, enabling automated QA for labeling pipelines.
+
+---
+
+## State Backends
+
+Ryva stores runs, lineage, and feedback as local JSON files by default. Swap in Postgres or S3 for team deployments:
+
+```python
+from ryva.backends import get_backend
+
+# Local (default)
+backend = get_backend({"type": "local"}, root=project_root)
+
+# Postgres
+backend = get_backend({"type": "postgres", "dsn": "postgresql://user:pass@host/db"})
+
+# S3
+backend = get_backend({"type": "s3", "bucket": "my-bucket", "region": "us-east-1"})
+```
+
+All backends implement the same `StateBackend` interface: `write`, `read`, `list_keys`, `delete`, `exists`.
+
+---
+
+## Cost Intelligence
+
+```bash
+ryva cost                                   # This month
+ryva cost --month 2026-04                   # Specific month
+ryva forecast                               # Budget projection
+ryva compare my_agent --providers anthropic,openai,gemini,ollama
+ryva compat --agent my_agent                # Find cheapest model that passes tests
+```
+
+Set budget limits in `project.yml`:
+
+```yaml
+budget:
+  monthly_limit_usd: 10.00
+  alert_threshold: 0.8
+  agents:
+    my_agent: 2.00
+```
+
+Ryva warns when approaching limits and blocks runs when exceeded.
+
+---
+
+## Project Structure
+
+```
+my-ai-project/
+├── agents/               # LLM agent definitions (.yml)
+├── prompts/              # Jinja2 prompt templates (.j2)
+├── macros/               # Reusable prompt macros (.j2)
+├── tools/                # Tool definitions (.yml) + implementations (.py)
+├── pipelines/            # Multi-agent pipeline definitions (.yml)
+├── models/               # ML model definitions (.yml) + implementations (.py)
+├── vector_stores/        # Vector store definitions (.yml) + implementations (.py)
+├── multimodal/           # Vision/audio/document model definitions
+├── tests/                # All test cases (.yml)
+├── evals/                # LLM-as-judge eval scorers
+├── policies.yml          # Output alignment policies (optional)
+├── lineage/              # Signed run records (gitignored)
+├── retraining/           # Drift scores and retraining jobs
+├── edge_telemetry/       # Edge device telemetry
+├── vision_lineage/       # Vision inference and annotation records
+├── target/               # Compiled output (gitignored)
+├── logs/                 # Run history and feedback (gitignored)
+└── project.yml           # Project config
 ```
 
 ---
@@ -240,39 +334,89 @@ jobs:
       - uses: actions/checkout@v4
       - run: pip install ryva
       - run: ryva compile
-      - run: ryva test
+      - run: ryva test --concurrency 10
+      - run: ryva governance report      # exits 2 if high-risk systems are untested
+      - run: ryva align
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RYVA_SECRET: ${{ secrets.RYVA_SECRET }}
 ```
 
 ---
 
-## CLI Reference
+## Full CLI Reference
 
 ```bash
-ryva init <name>                          # Initialize a new project
-ryva compile                              # Validate and compile
-ryva run --agent <name> --input '{}'      # Run an agent
-ryva run --pipeline <name> --input '{}'   # Run a pipeline
-ryva test                                 # Run all tests
-ryva test --agent <name>                  # Test a specific agent
-ryva test --pipeline <name>               # Test a specific pipeline
-ryva test --model <name>                  # Test an ML model
-ryva test --vector <name>                 # Test a vector store
-ryva test --multimodal <name>             # Test a multimodal model
-ryva test --adversarial                   # Run adversarial and security tests
-ryva eval --agent <name>                  # Run LLM-as-judge evals
-ryva cost                                 # Show cost report
-ryva compare <agent> --providers a,b,c    # Compare across providers
-ryva compat --agent <name>                # Find cheapest compatible model
-ryva dag                                  # Show dependency graph
-ryva docs generate                        # Generate documentation
-ryva docs serve                           # Serve docs in browser
-ryva check                                # Lint without output
-ryva list agents                          # List all agents
-ryva list tools                           # List all tools
-ryva list prompts                         # List all prompts
-ryva history                              # Show run history
+# Core
+ryva init <name>                              # Initialize a new project
+ryva compile                                  # Validate and compile
+ryva run --agent <name> --input '{}'          # Run an agent
+ryva run --pipeline <name> --input '{}'       # Run a pipeline
+ryva check                                    # Lint without output
+ryva dag                                      # Show dependency graph
+
+# Testing
+ryva test                                     # Run all tests (parallel)
+ryva test --concurrency <n>                   # Set worker count (1–20)
+ryva test --agent <name>
+ryva test --pipeline <name>
+ryva test --model <name>
+ryva test --vector <name>
+ryva test --multimodal <name>
+ryva test --adversarial [--categories a,b]
+ryva test --hallucination
+ryva test --rag
+ryva test --regression
+ryva test --memory
+ryva test --finetune
+ryva test --fuzz
+ryva eval --agent <name>
+ryva baseline <agent>                         # Snapshot baseline for regression
+
+# Lineage & Audit
+ryva lineage show <run-id>
+ryva lineage search [--agent] [--since] [--status] [--limit]
+ryva lineage verify [run-id | --all]
+ryva lineage export <run-id> [--out file]
+ryva diff <run-id-a> <run-id-b>
+ryva traces list
+ryva traces show <run-id>
+ryva history
+
+# Alignment & Governance
+ryva align [--agent <name>]
+ryva governance report [--out file]
+
+# Feedback
+ryva feedback record --run-id <id> --outcome <correct|incorrect|partial|unknown>
+ryva feedback report [--agent <name>]
+
+# Drift & Retraining
+ryva retrain trigger <agent> [--trigger type] [--reason text]
+ryva retrain history [--agent <name>]
+ryva retrain drift <agent> [--threshold 0.15]
+
+# Edge Telemetry
+ryva edge status [--device <id>]
+ryva edge flush <device-id>
+ryva edge report [--out file]
+
+# Vision
+ryva vision lineage show <image-hash>
+ryva vision lineage report [--out file]
+
+# Cost
+ryva cost [--month YYYY-MM]
+ryva forecast
+ryva compare <agent> --providers a,b,c [--runs n]
+ryva compat --agent <name> [--provider name]
+
+# Registry & Docs
+ryva registry list / add / info / remove
+ryva docs generate
+ryva docs serve [--port 8080]
+ryva list agents / tools / prompts
+ryva benchmark [name] [--model] [--provider]
 ```
 
 ---
@@ -304,12 +448,13 @@ ryva history                              # Show run history
 ## Roadmap
 
 - **Phase 1** ✅ — Core CLI: init, compile, run, test, docs, dag
-- **Phase 2** ✅ — Evals, multi-provider, plugins, macros, VS Code extension
+- **Phase 2** ✅ — Evals, multi-provider, plugins, macros
 - **Phase 3** ✅ — Ryva Cloud: hosted runtime, team dashboards, observability
 - **Phase 4** ✅ — Enterprise: teams, RBAC, audit logs, self-hosted, compliance
 - **Phase 5** ✅ — Pipeline, ML model, vector store, and multimodal testing
 - **Phase 6** ✅ — Cost intelligence, provider comparison, adversarial testing
-- **Phase 7** 🔜 — RAG pipeline testing, fine-tune evaluation, model registry
+- **Phase 7** ✅ — Parallel test execution, PII masking, HMAC lineage, semantic embeddings, state backends, governance exit codes, edge telemetry, drift monitoring, vision lineage
+- **Phase 8** 🔜 — Fine-tune pipeline automation, online learning hooks, multi-tenant edge fleet management
 
 ---
 
@@ -333,4 +478,4 @@ Apache 2.0 — see [LICENSE](LICENSE) for details.
 
 ---
 
-<p align="center">Built with 🤍 for AI engineers tired of building in the dark.</p>
+<p align="center">Built with &#x1F90D; for AI engineers tired of building in the dark.</p>
