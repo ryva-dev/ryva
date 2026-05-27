@@ -429,5 +429,132 @@ def benchmark(
     r = root or find_project_root()
     run_benchmark(r, name, model, provider)
 
+
+@app.command()
+def diff(
+    run_a: str = typer.Argument(..., help="First run ID"),
+    run_b: str = typer.Argument(..., help="Second run ID"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Compare two runs side by side — prompt hash, output hash, tokens, cost."""
+    from ryva.lineage import show_diff
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    show_diff(r, run_a, run_b)
+
+
+lineage_app = typer.Typer(help="Query AI decision lineage and audit trails.")
+app.add_typer(lineage_app, name="lineage")
+
+
+@lineage_app.command("show")
+def lineage_show_cmd(
+    run_id: str = typer.Argument(..., help="Run ID to reconstruct"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Show the full lineage chain for a run, including multi-agent parent calls."""
+    from ryva.lineage import show_chain
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    show_chain(r, run_id)
+
+
+@lineage_app.command("search")
+def lineage_search_cmd(
+    agent: str | None = typer.Option(None, "--agent", "-a", help="Filter by agent name"),
+    since: str | None = typer.Option(None, "--since", help="ISO date, e.g. 2026-05-01"),
+    status: str | None = typer.Option(None, "--status", help="Filter: success or error"),
+    limit: int = typer.Option(20, "--limit", help="Max results"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Search lineage records with optional filters."""
+    from ryva.lineage import show_search
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    show_search(r, agent, since, status, limit)
+
+
+@lineage_app.command("export")
+def lineage_export_cmd(
+    run_id: str = typer.Argument(..., help="Run ID to export"),
+    out: Path | None = typer.Option(None, "--out", "-o", help="Output file (default: stdout)"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Export full lineage chain as structured JSON for compliance or audit."""
+    from ryva.lineage import export_compliance
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    data = export_compliance(r, run_id)
+    if not data:
+        console.print(f"[red]No lineage data found for run '{run_id}'.[/red]")
+        raise typer.Exit(1)
+    text = json.dumps(data, indent=2)
+    if out:
+        out.write_text(text)
+        console.print(f"[green]✓ Exported to {out}[/green]")
+    else:
+        console.print(text)
+
+
+@app.command()
+def align(
+    agent: str | None = typer.Option(None, "--agent", "-a", help="Agent name (omit for all)"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Check agent outputs against alignment policies defined in project.yml."""
+    from ryva.alignment import run_alignment_checks
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    ok = run_alignment_checks(r, agent)
+    raise typer.Exit(0 if ok else 1)
+
+
+governance_app = typer.Typer(help="AI governance and compliance reporting.")
+app.add_typer(governance_app, name="governance")
+
+
+@governance_app.command("report")
+def governance_report_cmd(
+    out: Path | None = typer.Option(None, "--out", "-o", help="Save full JSON report to file"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Generate a governance report: risk scores, EU AI Act checklist, AI bill of materials."""
+    from ryva.governance import show_report
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    show_report(r, out)
+
+
+feedback_app = typer.Typer(help="Record and review outcome feedback for AI runs.")
+app.add_typer(feedback_app, name="feedback")
+
+
+@feedback_app.command("record")
+def feedback_record_cmd(
+    run_id: str = typer.Option(..., "--run-id", "-r", help="Run ID to annotate"),
+    outcome: str = typer.Option(..., "--outcome", "-o", help="correct / incorrect / partial / unknown"),
+    note: str = typer.Option("", "--note", "-n", help="Optional note"),
+    annotator: str = typer.Option("", "--annotator", help="Who is recording this"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Record an outcome annotation for a completed agent run."""
+    from ryva.feedback import record_feedback
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    record_feedback(r, run_id, outcome, note=note, annotator=annotator)
+
+
+@feedback_app.command("report")
+def feedback_report_cmd(
+    agent: str | None = typer.Option(None, "--agent", "-a", help="Filter by agent name"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Show outcome feedback summary and accuracy metrics."""
+    from ryva.feedback import show_feedback_report
+    from ryva.utils import find_project_root
+    r = root or find_project_root()
+    show_feedback_report(r, agent)
+
+
 if __name__ == "__main__":
     app()

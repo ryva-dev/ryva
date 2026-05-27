@@ -10,13 +10,21 @@ from jinja2 import Environment, FileSystemLoader
 from rich.panel import Panel
 from rich.syntax import Syntax
 
+from ryva.lineage import hash_content, hash_data
 from ryva.logger import get as get_logger
 from ryva.utils import console, load_manifest, parse_ref
 
 logger = get_logger("runner")
 
 
-def run_agent(root: Path, agent_name: str, input_data: dict) -> dict:
+def run_agent(
+    root: Path,
+    agent_name: str,
+    input_data: dict,
+    parent_run_id: str | None = None,
+    trace_id: str | None = None,
+    context: dict | None = None,
+) -> dict:
     manifest = load_manifest(root)
     agents = manifest.get("agents", {})
 
@@ -44,9 +52,22 @@ def run_agent(root: Path, agent_name: str, input_data: dict) -> dict:
     prompt_text = _resolve_prompt(root, agent, input_data)
     provider_name, model, provider = _resolve_provider(project, agent)
 
+    # Compute content hashes for lineage
+    prompt_hash = hash_content(prompt_text)
+    input_hash = hash_data(input_data)
+    prompt_template = agent.get("prompt", "")
+
     # Start trace
     from ryva.tracer import add_step, finish_trace, start_trace
-    trace = start_trace(root, agent_name, model, provider_name)
+    trace = start_trace(
+        root, agent_name, model, provider_name,
+        parent_run_id=parent_run_id,
+        trace_id=trace_id,
+        context=context or {},
+    )
+    trace["prompt_template"] = prompt_template
+    trace["prompt_hash"] = prompt_hash
+    trace["input_hash"] = input_hash
     add_step(trace, "prompt", {"content": prompt_text})
 
     # Call LLM
@@ -65,12 +86,38 @@ def run_agent(root: Path, agent_name: str, input_data: dict) -> dict:
         pricing,
     )
 
-    # Parse output
+    # Parse output and hash it
     output = _parse_output(result)
+    output_hash = hash_data(output)
+
+    # Attach lineage metadata to trace before finishing
+    trace["output_hash"] = output_hash
+    trace["tokens"] = {
+        "input": usage["input_tokens"],
+        "output": usage["output_tokens"],
+        "total": usage["input_tokens"] + usage["output_tokens"],
+    }
+    trace["cost_usd"] = cost
 
     # Record trace
     add_step(trace, "response", {"content": result, "duration_ms": elapsed})
     run_id = finish_trace(root, trace)
+
+    # Persist lineage record
+    from ryva.lineage import record as record_lineage
+    record_lineage(root, trace)
+
+    # Auto alignment check against project policies (non-blocking warnings only)
+    from ryva.alignment import check_output, load_policies
+    policies = load_policies(root, project)
+    if policies:
+        violations = check_output(result, policies)
+        errors = [v for v in violations if v["severity"] == "error"]
+        warnings = [v for v in violations if v["severity"] == "warning"]
+        for v in warnings:
+            console.print(f"[yellow]⚠ Alignment warning ({v['policy']}): {v['detail']}[/yellow]")
+        for v in errors:
+            console.print(f"[red]✗ Alignment violation ({v['policy']}): {v['detail']}[/red]")
 
     # Save run with token counts and cost
     _save_run(root, run_id, agent_name, provider_name, model,

@@ -6,6 +6,7 @@ from pathlib import Path
 from rich.panel import Panel
 from rich.table import Table
 
+from ryva.lineage import hash_content
 from ryva.logger import get as get_logger
 from ryva.resolver import ProjectResolver
 from ryva.utils import console
@@ -44,12 +45,22 @@ def compile_project(root: Path) -> bool:
             console.print(f"  [red]✗[/red] {err}")
         return False
 
+    # Hash all prompt templates for lineage tracking
+    prompt_hashes: dict[str, str] = {}
+    prompts_dir = root / "prompts"
+    if prompts_dir.exists():
+        for p in sorted(prompts_dir.glob("*.j2")):
+            prompt_hashes[p.stem] = hash_content(p.read_text())
+
     # Write manifest
     target = root / "target"
     target.mkdir(exist_ok=True)
     manifest = resolver.to_manifest()
+    manifest["prompt_hashes"] = prompt_hashes
     (target / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
+    if prompt_hashes:
+        console.print(f"[dim]Hashed {len(prompt_hashes)} prompt template(s)[/dim]")
     console.print("[bold green]✓ Compiled successfully[/bold green]")
     console.print("[dim]Manifest written to target/manifest.json[/dim]")
     return True

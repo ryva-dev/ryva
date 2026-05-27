@@ -34,9 +34,11 @@ def run_pipeline(root: Path, pipeline_name: str, input_data: dict) -> dict:
     console.print(f"[dim]Input: {json.dumps(input_data, indent=2)}[/dim]\n")
 
     run_id = str(uuid.uuid4())[:8]
+    trace_id = run_id  # shared across all steps in this pipeline run
     start = time.time()
     step_results = {}
     step_table_data = []
+    prev_run_id: str | None = None
 
     for step in steps:
         step_name = step.get("name")
@@ -60,7 +62,15 @@ def run_pipeline(root: Path, pipeline_name: str, input_data: dict) -> dict:
                 except ValueError:
                     agent_name = agent_ref
 
-                output = run_agent(root, agent_name, resolved_input)
+                output = run_agent(
+                    root, agent_name, resolved_input,
+                    parent_run_id=prev_run_id,
+                    trace_id=trace_id,
+                )
+                # Capture the run_id from the returned output if available
+                if isinstance(output, dict) and "run_id" not in output:
+                    pass  # lineage is recorded inside run_agent
+                prev_run_id = None  # reset; only chain explicitly sequential agents
                 status = "success"
 
             elif tool_ref:

@@ -14,15 +14,36 @@ console = Console()
 TRACES_DIR = "traces"
 
 
-def start_trace(root: Path, agent: str, model: str, provider: str) -> dict:
+def start_trace(
+    root: Path,
+    agent: str,
+    model: str,
+    provider: str,
+    parent_run_id: str | None = None,
+    trace_id: str | None = None,
+    context: dict | None = None,
+) -> dict:
+    run_id = str(uuid.uuid4())[:8]
     trace = {
-        "run_id": str(uuid.uuid4())[:8],
+        "run_id": run_id,
+        "trace_id": trace_id or run_id,
+        "parent_run_id": parent_run_id,
         "agent": agent,
         "model": model,
         "provider": provider,
         "started_at": datetime.utcnow().isoformat(),
         "steps": [],
         "status": "running",
+        "context": context or {},
+        # Populated by runner before finish_trace:
+        "prompt_template": None,
+        "prompt_hash": None,
+        "input_hash": None,
+        "output_hash": None,
+        "tokens": None,
+        "cost_usd": None,
+        "retrieval_chunks": [],
+        "tool_calls": [],
     }
     return trace
 

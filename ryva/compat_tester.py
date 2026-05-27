@@ -188,7 +188,7 @@ def _run_compat_case(
         llm_provider = get_provider(provider, provider_cfg)
         max_tokens = project.get("runtime", {}).get("max_tokens", 4096)
 
-        result_text = llm_provider.complete(prompt, model, max_tokens)
+        result_text, usage = llm_provider.complete_with_usage(prompt, model, max_tokens)
 
         # Parse output
         output = {}
@@ -201,9 +201,8 @@ def _run_compat_case(
         else:
             output = {"raw_output": result_text}
 
-        # Estimate cost
-        input_tokens = int(len(prompt.split()) * 1.3)
-        output_tokens = int(len(result_text.split()) * 1.3)
+        input_tokens = usage.get("input_tokens", 0)
+        output_tokens = usage.get("output_tokens", 0)
         cost = calculate_cost(provider, model, input_tokens, output_tokens)
 
         # Check schema

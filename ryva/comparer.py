@@ -181,9 +181,8 @@ def _run_with_provider(
     llm_provider = get_provider(provider, provider_cfg)
     max_tokens = project.get("runtime", {}).get("max_tokens", 4096)
 
-    result_text = llm_provider.complete(prompt, model, max_tokens)
+    result_text, usage = llm_provider.complete_with_usage(prompt, model, max_tokens)
 
-    # Parse output
     import re as re2
     output = {}
     match = re2.search(r'\{[\s\S]*\}', result_text)
@@ -195,9 +194,8 @@ def _run_with_provider(
     else:
         output = {"raw_output": result_text}
 
-    # Try to get token counts from provider
-    output["_input_tokens"] = len(prompt.split()) * 1.3  # estimate
-    output["_output_tokens"] = len(result_text.split()) * 1.3  # estimate
+    output["_input_tokens"] = usage.get("input_tokens", 0)
+    output["_output_tokens"] = usage.get("output_tokens", 0)
 
     return output
 
