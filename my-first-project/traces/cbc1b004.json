@@ -1,0 +1,23 @@
+{
+  "run_id": "cbc1b004",
+  "agent": "summarizer_agent",
+  "model": "claude-sonnet-4-5",
+  "provider": "anthropic",
+  "started_at": "2026-05-26T17:17:38.017947",
+  "steps": [
+    {
+      "type": "prompt",
+      "timestamp": "2026-05-26T17:17:38.017958",
+      "content": "You are a precise summarization assistant.\n\nSummarize the following text in 3 sentences or fewer.\nBe concise, accurate, and preserve the key ideas.\n\nText:\nThe quick brown fox jumps over the lazy dog.\n\nImportant: Respond ONLY with a valid JSON object. No markdown, no explanation, no backticks.\n\n{\n  \"summary\": \"your summary here\",\n  \"word_count\": <integer word count of your summary>\n}"
+    },
+    {
+      "type": "response",
+      "timestamp": "2026-05-26T17:17:40.103182",
+      "content": "{\n  \"summary\": \"The quick brown fox jumps over the lazy dog.\",\n  \"word_count\": 9\n}",
+      "duration_ms": 2078
+    }
+  ],
+  "status": "success",
+  "finished_at": "2026-05-26T17:17:40.103203",
+  "duration_ms": 2085
+}

@@ -1,0 +1,23 @@
+{
+  "run_id": "b50ec78a",
+  "agent": "summarizer_agent",
+  "model": "claude-sonnet-4-5",
+  "provider": "anthropic",
+  "started_at": "2026-05-26T17:17:35.429458",
+  "steps": [
+    {
+      "type": "prompt",
+      "timestamp": "2026-05-26T17:17:35.429462",
+      "content": "You are a precise summarization assistant.\n\nSummarize the following text in 3 sentences or fewer.\nBe concise, accurate, and preserve the key ideas.\n\nText:\nRyva is a framework for building, testing, and deploying agentic AI systems. It brings the same engineering discipline to AI that dbt brought to data transformation.\n\nImportant: Respond ONLY with a valid JSON object. No markdown, no explanation, no backticks.\n\n{\n  \"summary\": \"your summary here\",\n  \"word_count\": <integer word count of your summary>\n}"
+    },
+    {
+      "type": "response",
+      "timestamp": "2026-05-26T17:17:38.004598",
+      "content": "{\n  \"summary\": \"Ryva is a framework for building, testing, and deploying agentic AI systems. It applies engineering discipline to AI development, similar to how dbt standardized data transformation.\",\n  \"word_count\": 28\n}",
+      "duration_ms": 2568
+    }
+  ],
+  "status": "success",
+  "finished_at": "2026-05-26T17:17:38.004628",
+  "duration_ms": 2575
+}
