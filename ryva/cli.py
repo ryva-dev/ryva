@@ -15,6 +15,16 @@ app = typer.Typer(
 console = Console()
 
 
+def _resolve_root(root: Path | None) -> Path:
+    """Return root dir; print a friendly message and exit 1 if project.yml is missing."""
+    from ryva.utils import find_project_root
+    try:
+        return root or find_project_root()
+    except FileNotFoundError as exc:
+        console.print(f"[bold red]Error:[/bold red] {exc}")
+        raise typer.Exit(1)
+
+
 @app.command()
 def init(
     name: str = typer.Argument(..., help="Project name"),
@@ -31,8 +41,7 @@ def compile(
 ):
     """Compile and validate all agents, tools, and pipelines."""
     from ryva.compiler import compile_project
-    from ryva.utils import find_project_root
-    r = root or find_project_root()
+    r = _resolve_root(root)
     ok = compile_project(r)
     raise typer.Exit(0 if ok else 1)
 
@@ -53,20 +62,69 @@ def dag(
 def run(
     agent: str | None = typer.Option(None, "--agent", "-a", help="Agent name"),
     pipeline: str | None = typer.Option(None, "--pipeline", "-p", help="Pipeline name"),
-    input: str = typer.Option("{}", "--input", "-i", help="JSON input string"),
+    input: str | None = typer.Option(None, "--input", "-i", help="JSON input string"),
+    input_file: Path | None = typer.Option(None, "--input-file", "-f", help="Path to a JSON file containing the agent input"),
+    input_dir: Path | None = typer.Option(None, "--input-dir", help="Directory of JSON input files — runs the agent against each file"),
     root: Path | None = typer.Option(None, "--root", help="Project root"),
 ):
-    """Run an agent or pipeline locally."""
+    """Run an agent or pipeline locally.
+
+    Examples:
+      ryva run --agent my_agent --input '{"text": "hello"}'
+      ryva run --agent my_agent --input-file fixtures/input.json
+      ryva run --agent my_agent --input-dir fixtures/
+    """
     from ryva.pipeline_runner import run_pipeline
     from ryva.runner import run_agent
-    from ryva.utils import find_project_root
-    r = root or find_project_root()
+    r = _resolve_root(root)
 
-    try:
-        input_data = json.loads(input)
-    except json.JSONDecodeError:
-        console.print("[red]--input must be valid JSON[/red]")
+    if sum(x is not None for x in [input, input_file, input_dir]) > 1:
+        console.print("[red]Specify only one of --input, --input-file, or --input-dir[/red]")
         raise typer.Exit(1)
+
+    if input_dir is not None:
+        # Batch mode: run against every JSON file in the directory
+        if not input_dir.is_dir():
+            console.print(f"[red]--input-dir '{input_dir}' is not a directory[/red]")
+            raise typer.Exit(1)
+        files = sorted(input_dir.glob("*.json"))
+        if not files:
+            console.print(f"[red]No JSON files found in '{input_dir}'[/red]")
+            raise typer.Exit(1)
+        if not agent:
+            console.print("[red]--input-dir requires --agent[/red]")
+            raise typer.Exit(1)
+        passed = 0
+        for f in files:
+            try:
+                batch_input = json.loads(f.read_text())
+            except json.JSONDecodeError as e:
+                console.print(f"[red]Invalid JSON in {f.name}: {e}[/red]")
+                continue
+            console.print(f"[dim]Running against {f.name}...[/dim]")
+            result = run_agent(r, agent, batch_input)
+            if result.get("status") == "success":
+                passed += 1
+        color = "green" if passed == len(files) else "yellow"
+        console.print(f"\n[bold {color}]{passed}/{len(files)} runs succeeded.[/bold {color}]")
+        raise typer.Exit(0 if passed == len(files) else 1)
+
+    if input_file is not None:
+        if not input_file.exists():
+            console.print(f"[red]--input-file '{input_file}' not found[/red]")
+            raise typer.Exit(1)
+        try:
+            input_data = json.loads(input_file.read_text())
+        except json.JSONDecodeError as e:
+            console.print(f"[red]Invalid JSON in {input_file}: {e}[/red]")
+            raise typer.Exit(1)
+    else:
+        raw = input if input is not None else "{}"
+        try:
+            input_data = json.loads(raw)
+        except json.JSONDecodeError:
+            console.print("[red]--input must be valid JSON[/red]")
+            raise typer.Exit(1)
 
     if agent:
         run_agent(r, agent, input_data)

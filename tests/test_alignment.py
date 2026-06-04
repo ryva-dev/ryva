@@ -197,3 +197,48 @@ class TestLoadPolicies:
 
     def test_no_config_returns_empty(self, tmp_path):
         assert load_policies(tmp_path, {}) == []
+
+
+# ---------------------------------------------------------------------------
+# Code fence stripping (Fix 2)
+# ---------------------------------------------------------------------------
+
+class TestCodeFenceStripping:
+    def test_json_in_fences_passes_json_field_required(self):
+        fenced = '```json\n{"summary": "hello", "count": 5}\n```'
+        ok, detail = _apply_rule("json_field_required", fenced, {"field": "summary"})
+        assert ok, f"False positive: {detail}"
+
+    def test_plain_json_still_passes_json_field_required(self):
+        ok, _ = _apply_rule("json_field_required", '{"key": "value"}', {"field": "key"})
+        assert ok
+
+    def test_json_in_backtick_fences_no_language_tag(self):
+        fenced = '```\n{"field": true}\n```'
+        ok, _ = _apply_rule("json_field_required", fenced, {"field": "field"})
+        assert ok
+
+    def test_fenced_json_missing_field_still_fails(self):
+        fenced = '```json\n{"other": "value"}\n```'
+        ok, detail = _apply_rule("json_field_required", fenced, {"field": "missing"})
+        assert not ok
+        assert "missing" in detail
+
+    def test_fenced_json_passes_json_field_forbidden(self):
+        fenced = '```json\n{"safe_field": true}\n```'
+        ok, _ = _apply_rule("json_field_forbidden", fenced, {"field": "bad_field"})
+        assert ok
+
+    def test_keyword_forbidden_checks_content_not_fence_syntax(self):
+        fenced = '```json\n{"result": "clean output"}\n```'
+        ok, _ = _apply_rule("keyword_forbidden", fenced, {"keywords": ["badword"]})
+        assert ok
+
+    def test_check_output_strips_fences_for_all_policies(self):
+        fenced = '```json\n{"summary": "all good", "status": "ok"}\n```'
+        policies = [
+            {"check": "json_field_required", "name": "needs-summary", "field": "summary", "severity": "error"},
+            {"check": "keyword_forbidden", "name": "no-bad", "keywords": ["forbidden"], "severity": "error"},
+        ]
+        violations = check_output(fenced, policies)
+        assert violations == [], f"False positives: {violations}"

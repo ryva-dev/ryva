@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class FieldSchema(BaseModel):
@@ -17,7 +17,7 @@ class FieldSchema(BaseModel):
 class IOSchema(BaseModel):
     schema_: dict[str, FieldSchema] = Field(default_factory=dict, alias="schema")
 
-    model_config = {"populate_by_name": True}
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class MemoryConfig(BaseModel):
@@ -33,6 +33,8 @@ class TestDefinition(BaseModel):
 
 
 class AgentSchema(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     name: str
     version: str = "1.0.0"
     description: str = ""
@@ -48,6 +50,8 @@ class AgentSchema(BaseModel):
 
 
 class ToolSchema(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     name: str
     version: str = "1.0.0"
     description: str = ""
@@ -66,6 +70,8 @@ class PipelineStep(BaseModel):
 
 
 class PipelineSchema(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     name: str
     description: str = ""
     input: IOSchema | None = None
@@ -84,8 +90,11 @@ class TargetConfig(BaseModel):
 
 
 class ProjectSchema(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     name: str
     version: str = "0.1.0"
     providers: dict[str, Any] = Field(default_factory=dict)
     runtime: dict[str, Any] = Field(default_factory=dict)
     targets: dict[str, TargetConfig] = Field(default_factory=dict)
+

@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 
 import pytest
 
-from ryva.cost_tracker import (
+# Timestamps must use the current month so get_cost_summary includes them in
+# the monthly filter. Hardcoded past months produce 0-cost summaries and make
+# budget threshold tests always report no warnings.
+_THIS_MONTH = datetime.now(UTC).strftime("%Y-%m")
+
+from ryva.cost_tracker import (  # noqa: E402
     calculate_cost,
     check_budget,
     get_cost_summary,
@@ -168,7 +174,7 @@ class TestCheckBudget:
         runs_dir = tmp_path / "logs" / "runs"
         runs_dir.mkdir(parents=True)
         (runs_dir / "r.json").write_text(
-            json.dumps({"run_id": "r", "agent": "a", "timestamp": "2026-05-01T00:00:00+00:00", "estimated_cost": 85.0})
+            json.dumps({"run_id": "r", "agent": "a", "timestamp": f"{_THIS_MONTH}-01T00:00:00+00:00", "estimated_cost": 85.0})
         )
         project = {"budget": {"monthly_limit_usd": 100.0, "alert_threshold": 0.8}}
         warnings = check_budget(tmp_path, project)
@@ -179,7 +185,7 @@ class TestCheckBudget:
         runs_dir = tmp_path / "logs" / "runs"
         runs_dir.mkdir(parents=True)
         (runs_dir / "r.json").write_text(
-            json.dumps({"run_id": "r", "agent": "a", "timestamp": "2026-05-01T00:00:00+00:00", "estimated_cost": 150.0})
+            json.dumps({"run_id": "r", "agent": "a", "timestamp": f"{_THIS_MONTH}-01T00:00:00+00:00", "estimated_cost": 150.0})
         )
         project = {"budget": {"monthly_limit_usd": 100.0}}
         warnings = check_budget(tmp_path, project)
@@ -189,7 +195,7 @@ class TestCheckBudget:
         runs_dir = tmp_path / "logs" / "runs"
         runs_dir.mkdir(parents=True)
         (runs_dir / "r.json").write_text(
-            json.dumps({"run_id": "r", "agent": "summarizer", "timestamp": "2026-05-01T00:00:00+00:00", "estimated_cost": 20.0})
+            json.dumps({"run_id": "r", "agent": "summarizer", "timestamp": f"{_THIS_MONTH}-01T00:00:00+00:00", "estimated_cost": 20.0})
         )
         project = {
             "budget": {

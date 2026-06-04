@@ -19,11 +19,22 @@ def load_policies(root: Path, project: dict) -> list[dict]:
     return policies
 
 
+def _strip_fences(text: str) -> str:
+    """Strip markdown code fences so JSON policy checks work on actual content."""
+    match = re.search(r"^```(?:\w+)?\s*\n?(.*?)\n?```\s*$", text.strip(), re.DOTALL)
+    if match:
+        return match.group(1).strip()
+    return text.strip()
+
+
 def check_output(output_text: str, policies: list[dict]) -> list[dict]:
     """Check a raw output string against all policies. Returns violation dicts."""
+    # Strip code fences before evaluation — prevents false positives when models
+    # return valid JSON wrapped in markdown fences.
+    clean_text = _strip_fences(output_text)
     violations = []
     for policy in policies:
-        passed, detail = _apply_rule(policy.get("check", ""), output_text, policy)
+        passed, detail = _apply_rule(policy.get("check", ""), clean_text, policy)
         if not passed:
             violations.append({
                 "policy": policy.get("name", "unnamed"),
@@ -76,7 +87,7 @@ def _apply_rule(rule_type: str, text: str, policy: dict) -> tuple[bool, str]:
     if rule_type == "json_field_required":
         field = policy.get("field", "")
         try:
-            data = json.loads(text)
+            data = json.loads(_strip_fences(text))
             if field in data:
                 return True, "OK"
             return False, f"Required JSON field missing: '{field}'"
@@ -87,7 +98,7 @@ def _apply_rule(rule_type: str, text: str, policy: dict) -> tuple[bool, str]:
         field = policy.get("field", "")
         forbidden_value = policy.get("value")
         try:
-            data = json.loads(text)
+            data = json.loads(_strip_fences(text))
             if field not in data:
                 return True, "OK"
             if forbidden_value is not None and data[field] != forbidden_value:
