@@ -38,11 +38,12 @@ def init(
 @app.command()
 def compile(
     root: Path | None = typer.Option(None, "--root", help="Project root"),
+    strict: bool = typer.Option(False, "--strict", help="Error on unknown config keys instead of warning"),
 ):
     """Compile and validate all agents, tools, and pipelines."""
     from ryva.compiler import compile_project
     r = _resolve_root(root)
-    ok = compile_project(r)
+    ok = compile_project(r, strict=strict)
     raise typer.Exit(0 if ok else 1)
 
 
@@ -756,6 +757,189 @@ def edge_report_cmd(
     edge_show_report(r, out)
 
 
+approvals_app = typer.Typer(help="Manage compliance approvals for AI systems.")
+app.add_typer(approvals_app, name="approvals")
+
+
+@approvals_app.command("list")
+def approvals_list(
+    agent: str | None = typer.Option(None, "--agent", "-a", help="Filter by agent name"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
+):
+    """List all compliance approval requests for this project."""
+    r = _resolve_root(root)
+    approvals_dir = r / "target" / "approvals"
+    if not approvals_dir.exists():
+        console.print("[dim]No approvals recorded yet. Use 'ryva approvals request' to create one.[/dim]")
+        return
+    files = sorted(approvals_dir.glob("*.json"))
+    if not files:
+        console.print("[dim]No approvals found.[/dim]")
+        return
+    for f in files:
+        data = json.loads(f.read_text())
+        if agent and data.get("agent") != agent:
+            continue
+        status = data.get("status", "pending")
+        color = "green" if status == "approved" else "red" if status == "rejected" else "yellow"
+        console.print(
+            f"  [{color}]{status.upper()}[/{color}]"
+            f" [{data.get('step', '?')}]"
+            f" {data.get('agent', '?')} —"
+            f" {data.get('reviewer_name', 'Unassigned')}"
+            f" ({(data.get('created_at') or '')[:10]})"
+        )
+
+
+@approvals_app.command("request")
+def approvals_request(
+    agent: str = typer.Option(..., "--agent", "-a", help="Agent name"),
+    step: str = typer.Option(
+        ..., "--step", "-s",
+        help="Approval step: technical, privacy, compliance, legal",
+    ),
+    reviewer: str = typer.Option(..., "--reviewer", help="Reviewer name"),
+    reviewer_email: str = typer.Option(..., "--reviewer-email", help="Reviewer email"),
+    notes: str = typer.Option("", "--notes", help="Notes for the reviewer"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
+):
+    """Create a compliance approval request for an AI system."""
+    import uuid
+    from datetime import UTC, datetime
+
+    valid_steps = {"technical", "privacy", "compliance", "legal"}
+    if step not in valid_steps:
+        console.print(f"[red]--step must be one of: {', '.join(sorted(valid_steps))}[/red]")
+        raise typer.Exit(1)
+
+    r = _resolve_root(root)
+    approvals_dir = r / "target" / "approvals"
+    approvals_dir.mkdir(parents=True, exist_ok=True)
+
+    manifest: dict = {}
+    manifest_path = r / "target" / "manifest.json"
+    if manifest_path.exists():
+        try:
+            manifest = json.loads(manifest_path.read_text())
+        except Exception:
+            pass
+
+    approval_id = str(uuid.uuid4())[:8]
+    approval = {
+        "id": approval_id,
+        "agent": agent,
+        "step": step,
+        "status": "pending",
+        "reviewer_name": reviewer,
+        "reviewer_email": reviewer_email,
+        "notes": notes,
+        "prompt_hash": manifest.get("agents", {}).get(agent, {}).get("prompt_hash"),
+        "manifest_version": manifest.get("ryva_version"),
+        "created_at": datetime.now(UTC).isoformat(),
+        "approved_at": None,
+        "approved_by": None,
+    }
+    (approvals_dir / f"{approval_id}.json").write_text(json.dumps(approval, indent=2))
+
+    console.print(f"[bold green]✓ Approval request created: {approval_id}[/bold green]")
+    console.print(f"  Agent:    {agent}")
+    console.print(f"  Step:     {step}")
+    console.print(f"  Reviewer: {reviewer} <{reviewer_email}>")
+    console.print(f"  Prompt hash: {approval.get('prompt_hash') or 'unknown'}")
+
+
+@approvals_app.command("record")
+def approvals_record(
+    approval_id: str = typer.Option(..., "--id", help="Approval ID"),
+    approved_by: str = typer.Option(..., "--approved-by", help="Name of approver"),
+    notes: str = typer.Option("", "--notes", help="Approval notes"),
+    reject: bool = typer.Option(False, "--reject", help="Reject instead of approve"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
+):
+    """Record an approval or rejection decision."""
+    from datetime import UTC, datetime
+
+    r = _resolve_root(root)
+    filepath = r / "target" / "approvals" / f"{approval_id}.json"
+    if not filepath.exists():
+        console.print(f"[red]Approval '{approval_id}' not found.[/red]")
+        raise typer.Exit(1)
+
+    approval = json.loads(filepath.read_text())
+    approval["status"] = "rejected" if reject else "approved"
+    approval["approved_by"] = approved_by
+    approval["approved_at"] = datetime.now(UTC).isoformat()
+    approval["approval_notes"] = notes
+    filepath.write_text(json.dumps(approval, indent=2))
+
+    action = "rejected" if reject else "approved"
+    color = "red" if reject else "green"
+    console.print(f"[bold {color}]✓ Approval {action}: {approval_id}[/bold {color}]")
+
+
+@app.command()
+def changes(
+    agent: str | None = typer.Option(None, "--agent", "-a", help="Filter by agent name"),
+    requires_review: bool = typer.Option(False, "--requires-review", help="Show only items needing review"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
+):
+    """Show change history recorded during compile."""
+    r = _resolve_root(root)
+    history_file = r / "target" / "change_history.json"
+    if not history_file.exists():
+        console.print("[dim]No change history yet — run 'ryva compile' to start tracking.[/dim]")
+        return
+
+    all_changes = json.loads(history_file.read_text())
+    if agent:
+        all_changes = [c for c in all_changes if c.get("agent") == agent]
+    if requires_review:
+        all_changes = [c for c in all_changes if c.get("requires_review")]
+    if not all_changes:
+        console.print("[dim]No changes found.[/dim]")
+        return
+
+    for c in sorted(all_changes, key=lambda x: x.get("timestamp", ""), reverse=True):
+        severity = c.get("severity", "info")
+        color = "red" if severity == "high" else "yellow" if severity == "low" else "blue"
+        review_flag = "  [bold red]⚠ REVIEW REQUIRED[/bold red]" if c.get("requires_review") else ""
+        console.print(f"  [{color}]{c.get('type', '?')}[/{color}]{review_flag}")
+        console.print(f"  {c.get('description')}")
+        console.print(f"  [dim]{(c.get('timestamp') or '')[:19]}[/dim]")
+        if c.get("compliance_note"):
+            console.print(f"  [yellow]Note: {c['compliance_note']}[/yellow]")
+        console.print()
+
+
+ci_app = typer.Typer(help="CI/CD integration helpers.")
+app.add_typer(ci_app, name="ci")
+
+
+@ci_app.command("setup")
+def ci_setup(
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
+):
+    """Create .github/workflows/ryva-governance.yml in this project."""
+    from pathlib import Path as _Path
+
+    r = _resolve_root(root)
+    workflows_dir = r / ".github" / "workflows"
+    workflows_dir.mkdir(parents=True, exist_ok=True)
+    target = workflows_dir / "ryva-governance.yml"
+
+    template_path = _Path(__file__).parent / "templates" / "github_actions.yml"
+    if target.exists():
+        console.print("[yellow]ryva-governance.yml already exists — skipping.[/yellow]")
+    else:
+        target.write_text(template_path.read_text())
+        console.print("[bold green]✓ Created .github/workflows/ryva-governance.yml[/bold green]")
+
+    console.print("\n[dim]Add these secrets to your GitHub repository settings:[/dim]")
+    console.print("  ANTHROPIC_API_KEY  — your Anthropic API key")
+    console.print("  RYVA_API_KEY       — Ryva Cloud API key (if using cloud sync)")
+    console.print("  RYVA_PROJECT_ID    — Ryva Cloud project ID (if using cloud sync)")
+
+
 if __name__ == "__main__":
     app()
 
@@ -794,10 +978,12 @@ def cloud_sync_cmd(
     env: str = typer.Option("dev", "--env", help="Target environment: dev, staging, production"),
 ):
     """Sync traces, lineage, compliance reports, and model cards to Ryva Cloud."""
-    import os
     import json
+    import os
+
     import httpx
-    from ryva.cloud_sync import get_token, get_project_id, cloud_sync as do_cloud_sync
+
+    from ryva.cloud_sync import get_project_id, get_token
     from ryva.utils import find_project_root
 
     r = root or find_project_root()
@@ -869,8 +1055,8 @@ def cloud_sync_cmd(
                 pass
         console.print(f"  [green]✓ Synced {len(card_files)} model card(s)[/green]")
 
-    console.print(f"\n[bold green]✓ Sync complete[/bold green]")
-    console.print(f"  View at: https://ryva-dashboard.vercel.app/dashboard")
+    console.print("\n[bold green]✓ Sync complete[/bold green]")
+    console.print("  View at: https://ryva-dashboard.vercel.app/dashboard")
 
 
 @cloud_app.command("status")
@@ -878,7 +1064,7 @@ def cloud_status_cmd(
     root: Path = typer.Option(None, "--root", help="Project root"),
 ):
     """Show cloud connection status."""
-    from ryva.cloud_sync import get_token, get_project_id
+    from ryva.cloud_sync import get_project_id, get_token
     from ryva.utils import find_project_root
 
     r = root or find_project_root()
@@ -886,7 +1072,7 @@ def cloud_status_cmd(
     project_id = get_project_id(r)
 
     if token and project_id:
-        console.print(f"[green]✓ Connected to Ryva Cloud[/green]")
+        console.print("[green]✓ Connected to Ryva Cloud[/green]")
         console.print(f"  Project ID: {project_id}")
     else:
         console.print("[yellow]Not connected. Run: ryva cloud login[/yellow]")

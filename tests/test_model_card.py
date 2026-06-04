@@ -3,10 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from ryva.model_card import (
-    MODEL_CARD_TEMPLATE,
     _assess_risk,
     generate_model_card,
     print_model_card_summary,

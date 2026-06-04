@@ -29,6 +29,7 @@ def scaffold(name: str, dest: Path) -> None:
     _write_example_test(dest)
     _write_gitignore(dest)
     _write_readme(dest, name)
+    _write_github_actions(dest)
 
     console.print(f"\n[bold green]✓ Project '{name}' created at {dest}[/bold green]")
     console.print("\nNext steps:")
@@ -177,6 +178,17 @@ def _write_example_test(dest: Path):
     with open(dest / "tests" / "summarizer_agent" / "test_schema.yml", "w") as f:
         yaml.dump(data, f)
     console.print("  [dim]created tests/summarizer_agent/test_schema.yml[/dim]")
+
+
+def _write_github_actions(dest: Path) -> None:
+    """Write .github/workflows/ryva-governance.yml from the bundled template."""
+    workflows_dir = dest / ".github" / "workflows"
+    workflows_dir.mkdir(parents=True, exist_ok=True)
+    target = workflows_dir / "ryva-governance.yml"
+    if not target.exists():
+        template_path = Path(__file__).parent / "templates" / "github_actions.yml"
+        target.write_text(template_path.read_text())
+        console.print("  [dim]created .github/workflows/ryva-governance.yml[/dim]")
 
 
 def _write_gitignore(dest: Path):
