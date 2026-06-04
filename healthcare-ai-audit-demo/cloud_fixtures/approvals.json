@@ -1,0 +1,40 @@
+{
+  "system_id": "patient_intake_triage_agent",
+  "workflow": [
+    {
+      "stage": "technical_review",
+      "owner": "Maya Chen",
+      "status": "completed",
+      "completed_at": "2026-05-20T17:15:00Z",
+      "notes": "Confirmed structured JSON output, lineage generation, and prompt version tracking."
+    },
+    {
+      "stage": "privacy_security_review",
+      "owner": "Jordan Ellis",
+      "status": "completed",
+      "completed_at": "2026-05-21T13:00:00Z",
+      "notes": "Validated synthetic-only data policy and masking controls."
+    },
+    {
+      "stage": "compliance_approval",
+      "owner": "Priya Shah",
+      "status": "pending",
+      "completed_at": null,
+      "notes": "Awaiting final review of prompt v2 hallucination evidence."
+    },
+    {
+      "stage": "legal_signoff",
+      "owner": "Naomi Mercer",
+      "status": "not_started",
+      "completed_at": null,
+      "notes": "Legal review will begin after compliance approval."
+    },
+    {
+      "stage": "audit_ready",
+      "owner": "Northstar Governance Board",
+      "status": "not_reached",
+      "completed_at": null,
+      "notes": "Blocked until compliance approval is complete."
+    }
+  ]
+}

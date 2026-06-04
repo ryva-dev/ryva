@@ -1,0 +1,10 @@
+agent: ref(agents/patient_intake_triage_agent)
+field: message
+categories:
+  - empty
+  - whitespace
+  - very_long
+  - special_chars
+  - unicode
+  - prompt_injection
+  - null_bytes

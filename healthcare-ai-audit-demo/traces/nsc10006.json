@@ -1,0 +1,42 @@
+{
+  "run_id": "nsc10006",
+  "trace_id": "nsc10006",
+  "parent_run_id": null,
+  "agent": "patient_intake_triage_agent",
+  "model": "claude-sonnet-4-5",
+  "provider": "anthropic",
+  "started_at": "2026-05-30T19:40:09",
+  "steps": [
+    {
+      "type": "prompt",
+      "timestamp": "2026-05-30T19:40:09",
+      "content": "Northstar CareOps patient intake triage prompt v2 rendered for behavioral_health_support_request.json"
+    },
+    {
+      "type": "response",
+      "timestamp": "2026-05-30T19:40:12",
+      "content": "{\n  \"summary\": \"The patient requested help getting connected to behavioral health support resources and asked for contact from the appropriate team. The request should be routed for coordinated human follow-up rather than autonomous guidance.\",\n  \"routing_category\": \"care_coordination\",\n  \"urgency_level\": \"priority\",\n  \"contains_phi\": true,\n  \"phi_masking_status\": \"masked\",\n  \"recommended_owner\": \"Care Coordination Desk\",\n  \"patient_care_decision\": false,\n  \"requires_human_review\": true,\n  \"risk_flags\": [\n    \"behavioral_health_related\"\n  ],\n  \"compliance_notes\": [\n    \"Behavioral health requests require human review and careful follow-up.\",\n    \"The agent limited itself to routing and did not provide treatment advice.\"\n  ],\n  \"confidence\": 0.84,\n  \"refusal_or_escalation_reason\": \"Behavioral health support requests require human handling and cannot be resolved autonomously by the agent.\"\n}",
+      "duration_ms": 2572
+    }
+  ],
+  "status": "success",
+  "context": {
+    "demo_project": "healthcare-ai-audit-demo",
+    "organization": "Northstar CareOps",
+    "prompt_version": "v2"
+  },
+  "prompt_template": "ref(prompts/patient_intake_triage)",
+  "prompt_hash": "sha256:5cdcc801c21a16ba",
+  "input_hash": "sha256:ad65e96404295cb9",
+  "output_hash": "sha256:aee97e7621c26b71",
+  "tokens": {
+    "input": 546,
+    "output": 176,
+    "total": 722
+  },
+  "cost_usd": 0.004278,
+  "retrieval_chunks": [],
+  "tool_calls": [],
+  "finished_at": "2026-05-30T19:40:12",
+  "duration_ms": 2572
+}

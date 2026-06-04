@@ -1,0 +1,32 @@
+system_name: patient_intake_triage_agent
+organization: Northstar CareOps
+intended_use: administrative intake summarization and routing
+prohibited_use:
+  - diagnosis
+  - treatment recommendation
+  - autonomous patient-care decisions
+domain: healthcare operations
+use_case_type: administrative / patient-facing intake support
+risk_level: HIGH
+risk_justification: Patient-facing workflow with PHI-like data and urgent health language, but no autonomous patient-care decisions.
+affects_patient_care: indirectly
+processes_phi: true
+pii_masking_enabled: true
+human_oversight_required: true
+business_owner: Elena Brooks
+technical_owner: Maya Chen
+compliance_approver: Priya Shah
+privacy_security_reviewer: Jordan Ellis
+legal_reviewer: Naomi Mercer
+provider: anthropic
+model_id: claude-sonnet-4-5
+data_retention: demo-only local artifacts, no real PHI
+data_sources:
+  - synthetic intake forms
+  - synthetic policy documents
+evaluation_summary:
+  - schema coverage for structured JSON output
+  - regression baseline for routine scheduling route
+  - adversarial and fuzz coverage for prompt robustness
+  - hallucination checks for unsupported claims
+  - governance report, lineage verification, and audit export evidence

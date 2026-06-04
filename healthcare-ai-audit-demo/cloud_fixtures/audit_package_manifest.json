@@ -1,0 +1,33 @@
+{
+  "package_name": "ryva_audit_patient_intake_triage_agent_20260603.zip",
+  "system_id": "patient_intake_triage_agent",
+  "tree": [
+    "README.md",
+    "system_overview.md",
+    "technical_documentation.md",
+    "hipaa/security_risk_analysis.md",
+    "hipaa/phi_inventory.md",
+    "eu_ai_act/annex_iv_technical_documentation.md",
+    "eu_ai_act/article_compliance_evidence.md",
+    "colorado_ai_act/impact_assessment.md",
+    "test_evidence/schema_test_results.json",
+    "test_evidence/adversarial_test_results.json",
+    "test_evidence/hallucination_test_results.json",
+    "test_evidence/regression_test_results.json",
+    "traces/synthetic_traces.json",
+    "approval_history.md",
+    "change_history.md",
+    "model_card.json"
+  ],
+  "source_artifacts": [
+    "target/governance_report.json",
+    "target/model_cards/patient_intake_triage_agent_model_card.json",
+    "lineage/",
+    "traces/",
+    "audit_assets/"
+  ],
+  "notes": [
+    "Manifest is synthetic and intended for Ryva Cloud dashboard demos.",
+    "Ryva gathers governance evidence but does not itself certify legal compliance."
+  ]
+}

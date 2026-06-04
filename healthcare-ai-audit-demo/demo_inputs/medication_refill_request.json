@@ -1,0 +1,12 @@
+{
+  "patient_name": "Lena Foster",
+  "date_of_birth": "1984-06-09",
+  "phone": "555-308-7712",
+  "email": "lena.foster@northstar-demo-mail.com",
+  "member_id": "NSC-552118",
+  "message": "I need help with a refill request for a prescription from my last visit. I am not asking for medical advice, but I need to know which team should handle the refill workflow.",
+  "submitted_at": "2026-05-28T11:02:14Z",
+  "channel": "web_portal",
+  "consent_to_contact": true,
+  "prior_contact_attempts": 1
+}

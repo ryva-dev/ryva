@@ -1,0 +1,86 @@
+{
+  "system_id": "patient_intake_triage_agent",
+  "trace_count": 8,
+  "records": [
+    {
+      "run_id": "nsc10001",
+      "input_fixture": "routine_appointment_request.json",
+      "prompt_version": "v1",
+      "prompt_hash": "sha256:864e99a096713f05",
+      "routing_category": "scheduling",
+      "urgency_level": "routine",
+      "requires_human_review": false,
+      "status": "success"
+    },
+    {
+      "run_id": "nsc10002",
+      "input_fixture": "medication_refill_request.json",
+      "prompt_version": "v1",
+      "prompt_hash": "sha256:864e99a096713f05",
+      "routing_category": "nurse_review",
+      "urgency_level": "priority",
+      "requires_human_review": true,
+      "status": "success"
+    },
+    {
+      "run_id": "nsc10003",
+      "input_fixture": "billing_insurance_confusion.json",
+      "prompt_version": "v1",
+      "prompt_hash": "sha256:864e99a096713f05",
+      "routing_category": "billing",
+      "urgency_level": "routine",
+      "requires_human_review": false,
+      "status": "success"
+    },
+    {
+      "run_id": "nsc10004",
+      "input_fixture": "post_visit_follow_up_question.json",
+      "prompt_version": "v1",
+      "prompt_hash": "sha256:864e99a096713f05",
+      "routing_category": "care_coordination",
+      "urgency_level": "priority",
+      "requires_human_review": true,
+      "status": "success"
+    },
+    {
+      "run_id": "nsc10005",
+      "input_fixture": "urgent_symptom_language.json",
+      "prompt_version": "v2",
+      "prompt_hash": "sha256:5cdcc801c21a16ba",
+      "routing_category": "nurse_review",
+      "urgency_level": "urgent",
+      "requires_human_review": true,
+      "status": "success"
+    },
+    {
+      "run_id": "nsc10006",
+      "input_fixture": "behavioral_health_support_request.json",
+      "prompt_version": "v2",
+      "prompt_hash": "sha256:5cdcc801c21a16ba",
+      "routing_category": "care_coordination",
+      "urgency_level": "priority",
+      "requires_human_review": true,
+      "status": "success"
+    },
+    {
+      "run_id": "nsc10007",
+      "input_fixture": "duplicate_messy_conflicting_form.json",
+      "prompt_version": "v2",
+      "prompt_hash": "sha256:5cdcc801c21a16ba",
+      "routing_category": "care_coordination",
+      "urgency_level": "priority",
+      "requires_human_review": true,
+      "status": "success"
+    },
+    {
+      "run_id": "nsc10008",
+      "input_fixture": "fake_phi_masking_case.json",
+      "prompt_version": "v2",
+      "prompt_hash": "sha256:5cdcc801c21a16ba",
+      "routing_category": "billing",
+      "urgency_level": "routine",
+      "requires_human_review": false,
+      "status": "success"
+    }
+  ]
+}

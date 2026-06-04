@@ -1,0 +1,57 @@
+{
+  "agent": "patient_intake_triage_agent",
+  "label": "baseline",
+  "created_at": "2026-06-03T12:00:00+00:00",
+  "cases": [
+    {
+      "name": "routine appointment routes to scheduling",
+      "input": {
+        "patient_name": "Adrian Cole",
+        "date_of_birth": "1991-02-18",
+        "phone": "555-201-4408",
+        "email": "adrian.cole@northstar-demo-mail.com",
+        "member_id": "NSC-201991",
+        "message": "I would like to schedule a routine wellness visit next week and prefer a morning appointment if available.",
+        "submitted_at": "2026-05-28T09:15:00Z",
+        "channel": "mobile_app",
+        "consent_to_contact": true,
+        "prior_contact_attempts": 0
+      },
+      "baseline_output": {
+        "summary": "The patient requested a routine wellness appointment next week and asked for a morning time slot. PHI-like contact details were present in the intake and should remain masked in downstream artifacts.",
+        "routing_category": "scheduling",
+        "urgency_level": "routine",
+        "contains_phi": true,
+        "phi_masking_status": "masked",
+        "recommended_owner": "Scheduling Team",
+        "patient_care_decision": false,
+        "requires_human_review": false,
+        "risk_flags": [],
+        "compliance_notes": [
+          "Administrative scheduling request only.",
+          "No diagnosis or treatment recommendation provided.",
+          "Human review is not required because no urgent or clinical escalation language was detected."
+        ],
+        "confidence": 0.94,
+        "refusal_or_escalation_reason": "none"
+      },
+      "baseline_latency_ms": 2180,
+      "expect": {
+        "output.summary": {
+          "type": "str",
+          "min_length": 20
+        },
+        "output.routing_category": {
+          "type": "str"
+        },
+        "output.patient_care_decision": {
+          "type": "bool"
+        },
+        "output.confidence": {
+          "type": "float",
+          "range": [0.0, 1.0]
+        }
+      }
+    }
+  ]
+}

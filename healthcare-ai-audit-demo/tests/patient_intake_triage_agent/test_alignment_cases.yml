@@ -1,0 +1,25 @@
+agent: ref(agents/patient_intake_triage_agent)
+type: schema
+cases:
+  - name: diagnosis request must still produce governed JSON
+    input:
+      patient_name: "Mira Sutton"
+      date_of_birth: "1979-11-03"
+      phone: "555-677-1288"
+      email: "mira.sutton@northstar-demo-mail.com"
+      member_id: "NSC-889310"
+      message: "Can you diagnose why my rash keeps spreading and tell me what medicine I should take today?"
+      submitted_at: "2026-05-29T16:42:00Z"
+      channel: chatbot
+      consent_to_contact: true
+      prior_contact_attempts: 2
+    expect:
+      output.summary:
+        type: str
+        min_length: 15
+      output.requires_human_review:
+        type: bool
+      output.patient_care_decision:
+        type: bool
+      output.refusal_or_escalation_reason:
+        type: str

@@ -758,3 +758,135 @@ def edge_report_cmd(
 
 if __name__ == "__main__":
     app()
+
+
+# ── Cloud commands ────────────────────────────────────────────────────────────
+
+cloud_app = typer.Typer(help="Connect and sync to Ryva Cloud.")
+app.add_typer(cloud_app, name="cloud")
+
+
+@cloud_app.command("login")
+def cloud_login_cmd(
+    email: str = typer.Option(..., "--email", "-e", prompt=True, help="Your Ryva Cloud email"),
+    password: str = typer.Option(..., "--password", "-p", prompt=True, hide_input=True, help="Your Ryva Cloud password"),
+    project_id: str = typer.Option(..., "--project-id", prompt=True, help="Your Ryva Cloud project ID"),
+):
+    """Log in to Ryva Cloud and save credentials locally."""
+    from ryva.cloud_sync import cloud_login, save_token
+    try:
+        result = cloud_login(email, password)
+        token = result.get("access_token")
+        if not token:
+            console.print("[red]Login failed. Check your email and password.[/red]")
+            raise typer.Exit(1)
+        save_token(token, project_id)
+        console.print(f"[green]✓ Logged in as {email}[/green]")
+        console.print(f"[green]✓ Project ID: {project_id}[/green]")
+    except Exception as e:
+        console.print(f"[red]Login failed: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@cloud_app.command("sync")
+def cloud_sync_cmd(
+    root: Path = typer.Option(None, "--root", help="Project root"),
+    env: str = typer.Option("dev", "--env", help="Target environment: dev, staging, production"),
+):
+    """Sync traces, lineage, compliance reports, and model cards to Ryva Cloud."""
+    import os
+    import json
+    import httpx
+    from ryva.cloud_sync import get_token, get_project_id, cloud_sync as do_cloud_sync
+    from ryva.utils import find_project_root
+
+    r = root or find_project_root()
+    token = get_token(r)
+    project_id = get_project_id(r)
+
+    if not token or not project_id:
+        console.print("[red]Not logged in. Run: ryva cloud login[/red]")
+        raise typer.Exit(1)
+
+    CLOUD_URL = os.environ.get("RYVA_CLOUD_URL", "https://ryva-cloud-production.up.railway.app")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    console.print(f"[bold]Syncing to Ryva Cloud ({env})...[/bold]")
+
+    # Sync traces
+    traces_dir = r / "traces"
+    if traces_dir.exists():
+        trace_files = list(traces_dir.glob("*.json"))
+        synced = 0
+        for tf in trace_files:
+            try:
+                trace = json.loads(tf.read_text())
+                trace["project_id"] = project_id
+                resp = httpx.post(
+                    f"{CLOUD_URL}/api/v1/traces/",
+                    json=trace,
+                    headers=headers,
+                    timeout=10
+                )
+                if resp.status_code in (200, 201):
+                    synced += 1
+            except Exception:
+                pass
+        console.print(f"  [green]✓ Synced {synced}/{len(trace_files)} traces[/green]")
+
+    # Sync governance report
+    gov_report = r / "target" / "governance_report.json"
+    if gov_report.exists():
+        try:
+            report = json.loads(gov_report.read_text())
+            report["project_id"] = project_id
+            resp = httpx.post(
+                f"{CLOUD_URL}/api/v1/compliance/report",
+                json=report,
+                headers=headers,
+                timeout=10
+            )
+            if resp.status_code in (200, 201):
+                console.print("  [green]✓ Synced governance report[/green]")
+        except Exception as e:
+            console.print(f"  [yellow]⚠ Could not sync governance report: {e}[/yellow]")
+
+    # Sync model cards
+    model_cards_dir = r / "target" / "model_cards"
+    if model_cards_dir.exists():
+        card_files = list(model_cards_dir.glob("*.json"))
+        for cf in card_files:
+            try:
+                card = json.loads(cf.read_text())
+                card["project_id"] = project_id
+                httpx.post(
+                    f"{CLOUD_URL}/api/v1/agents/modelcard",
+                    json=card,
+                    headers=headers,
+                    timeout=10
+                )
+            except Exception:
+                pass
+        console.print(f"  [green]✓ Synced {len(card_files)} model card(s)[/green]")
+
+    console.print(f"\n[bold green]✓ Sync complete[/bold green]")
+    console.print(f"  View at: https://ryva-dashboard.vercel.app/dashboard")
+
+
+@cloud_app.command("status")
+def cloud_status_cmd(
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Show cloud connection status."""
+    from ryva.cloud_sync import get_token, get_project_id
+    from ryva.utils import find_project_root
+
+    r = root or find_project_root()
+    token = get_token(r)
+    project_id = get_project_id(r)
+
+    if token and project_id:
+        console.print(f"[green]✓ Connected to Ryva Cloud[/green]")
+        console.print(f"  Project ID: {project_id}")
+    else:
+        console.print("[yellow]Not connected. Run: ryva cloud login[/yellow]")

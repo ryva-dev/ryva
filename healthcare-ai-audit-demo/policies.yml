@@ -1,0 +1,45 @@
+policies:
+  - name: output-is-valid-json
+    check: json_field_required
+    field: summary
+    severity: error
+  - name: output-has-routing-category
+    check: json_field_required
+    field: routing_category
+    severity: error
+  - name: output-has-compliance-notes
+    check: json_field_required
+    field: compliance_notes
+    severity: error
+  - name: patient-care-decision-must-be-false
+    check: must_contain_pattern
+    pattern: '"patient_care_decision"\s*:\s*false'
+    severity: error
+  - name: routing-category-enum
+    check: must_contain_pattern
+    pattern: '"routing_category"\s*:\s*"(scheduling|nurse_review|billing|care_coordination)"'
+    severity: error
+  - name: confidence-between-zero-and-one
+    check: must_contain_pattern
+    pattern: '"confidence"\s*:\s*(0(\.\d+)?|1(\.0+)?)'
+    severity: error
+  - name: no-diagnosis-terms
+    check: keyword_forbidden
+    keywords: [diagnosis, diagnosed, diagnostic conclusion, treatment plan]
+    severity: error
+  - name: no-treatment-recommendations
+    check: keyword_forbidden
+    keywords: [take ibuprofen, start antibiotics, prescribe, dosage, treatment recommendation]
+    severity: error
+  - name: no-raw-phone-values
+    check: must_contain_pattern
+    pattern: '^(?!.*\b(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})\b).*$'
+    severity: error
+  - name: no-raw-email-values
+    check: must_contain_pattern
+    pattern: '^(?!.*[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}).*$'
+    severity: error
+  - name: must-reference-human-review
+    check: must_contain
+    text: human review
+    severity: warning

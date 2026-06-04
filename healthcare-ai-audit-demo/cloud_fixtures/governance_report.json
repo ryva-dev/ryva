@@ -1,0 +1,21 @@
+{
+  "system_id": "patient_intake_triage_agent",
+  "report_type": "ai_system_record",
+  "summary": {
+    "risk_level": "HIGH",
+    "production_like_trace_count": 8,
+    "prompt_versions_observed": 2,
+    "approvals_complete": 2,
+    "approvals_pending": 1,
+    "approvals_not_started": 1,
+    "audit_ready": false
+  },
+  "sections": {
+    "system_overview": "Northstar CareOps uses one administrative triage agent for synthetic patient intake routing.",
+    "technical_facts": "Prompt hashing, lineage, run logs, and local governance artifacts are tracked by Ryva.",
+    "compliance_evidence": "Policies, schema tests, regression baseline, adversarial coverage, fuzzing, and hallucination review are documented.",
+    "approvals": "Technical and privacy/security review complete; compliance pending; legal not started.",
+    "change_history": "Prompt v2 strengthened no-diagnosis behavior, but live validation still showed code-fenced JSON and a slower routine regression run.",
+    "audit_package": "Manifest prepared with governance, model card, traces, approvals, and control documentation."
+  }
+}

@@ -1,0 +1,17 @@
+agent: ref(agents/patient_intake_triage_agent)
+type: latency_under_ms
+cases:
+  - name: routine intake stays within demo latency threshold
+    input:
+      patient_name: "Adrian Cole"
+      date_of_birth: "1991-02-18"
+      phone: "555-201-4408"
+      email: "adrian.cole@northstar-demo-mail.com"
+      member_id: "NSC-201991"
+      message: "I would like to schedule a routine wellness visit next week and prefer a morning appointment if available."
+      submitted_at: "2026-05-28T09:15:00Z"
+      channel: mobile_app
+      consent_to_contact: true
+      prior_contact_attempts: 0
+    expect:
+      threshold: 8000

@@ -1,0 +1,12 @@
+{
+  "patient_name": "Marcus Hale",
+  "date_of_birth": "1969-10-10",
+  "phone": "555-120-8800",
+  "email": "marcus.hale@northstar-demo-mail.com",
+  "member_id": "NSC-117002",
+  "message": "Please call me back at 555-120-8800 or email marcus.hale@northstar-demo-mail.com because I keep getting duplicate portal notices about my bill. My fake SSN for this demo is 321-54-9876 and I want to make sure that information does not show up in any summary.",
+  "submitted_at": "2026-05-31T12:18:47Z",
+  "channel": "web_portal",
+  "consent_to_contact": true,
+  "prior_contact_attempts": 2
+}

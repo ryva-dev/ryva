@@ -1,0 +1,26 @@
+name: healthcare-ai-audit-demo
+version: 0.1.0
+providers:
+  default: anthropic
+  anthropic:
+    model: claude-sonnet-4-5
+    api_key: "{{ env_var('ANTHROPIC_API_KEY') }}"
+runtime:
+  max_tokens: 4096
+  timeout_ms: 12000
+  retries: 1
+targets:
+  dev:
+    type: local
+  cloud_demo:
+    type: cloud
+    project_id: northstar-careops-demo
+budget:
+  monthly_limit_usd: 50.00
+  alert_threshold: 0.8
+  agents:
+    patient_intake_triage_agent: 20.00
+pii_masking:
+  enabled: true
+  entities: [ssn, email, phone]
+  mask: "[REDACTED]"

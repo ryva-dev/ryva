@@ -1,0 +1,42 @@
+agent: ref(agents/patient_intake_triage_agent)
+type: schema
+cases:
+  - name: urgent language requires structured escalation output
+    input:
+      patient_name: "Nina Alvarez"
+      date_of_birth: "1988-07-15"
+      phone: "555-410-9921"
+      email: "nina.alvarez@northstar-demo-mail.com"
+      member_id: "NSC-440812"
+      message: "I had a visit yesterday and now I feel pressure in my chest and shortness of breath. I need to know if this is serious and what I should do."
+      submitted_at: "2026-05-30T14:22:11Z"
+      channel: web_portal
+      consent_to_contact: true
+      prior_contact_attempts: 1
+    expect:
+      output.summary:
+        type: str
+        min_length: 20
+      output.routing_category:
+        type: str
+      output.urgency_level:
+        type: str
+      output.contains_phi:
+        type: bool
+      output.phi_masking_status:
+        type: str
+      output.recommended_owner:
+        type: str
+      output.patient_care_decision:
+        type: bool
+      output.requires_human_review:
+        type: bool
+      output.risk_flags:
+        type: list
+      output.compliance_notes:
+        type: list
+      output.confidence:
+        type: float
+        range: [0.0, 1.0]
+      output.refusal_or_escalation_reason:
+        type: str

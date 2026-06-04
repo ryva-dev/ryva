@@ -1,0 +1,26 @@
+{
+  "run_id": "1eb7ec7a",
+  "parent_run_id": null,
+  "trace_id": "1eb7ec7a",
+  "agent": "summarizer_agent",
+  "model": "claude-sonnet-4-5",
+  "provider": "anthropic",
+  "prompt_template": "ref(prompts/summarizer)",
+  "prompt_hash": "sha256:3c63fd5f1fde89b6",
+  "input_hash": "sha256:029329a6908bb3df",
+  "output_hash": "sha256:036816f079b635ed",
+  "started_at": "2026-06-02T01:15:49.399744",
+  "finished_at": "2026-06-02T01:15:52.162397",
+  "duration_ms": 2762,
+  "status": "success",
+  "tokens": {
+    "input": 110,
+    "output": 31,
+    "total": 141
+  },
+  "cost_usd": 0.000795,
+  "context": {},
+  "retrieval_chunks": [],
+  "tool_calls": [],
+  "signature": "1ecd5a61c5f3affd68db447aa25d423ecd590d3a7c219772a773eebf60d9a4fe"
+}

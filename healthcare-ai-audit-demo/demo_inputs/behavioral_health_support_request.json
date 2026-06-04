@@ -1,0 +1,12 @@
+{
+  "patient_name": "Camila Rhodes",
+  "date_of_birth": "1997-03-30",
+  "phone": "555-519-3344",
+  "email": "camila.rhodes@northstar-demo-mail.com",
+  "member_id": "NSC-903157",
+  "message": "I am looking for behavioral health support resources and want to know who can help me get connected. I have been feeling overwhelmed and would like a call back from the right team.",
+  "submitted_at": "2026-05-30T19:40:02Z",
+  "channel": "chatbot",
+  "consent_to_contact": true,
+  "prior_contact_attempts": 0
+}

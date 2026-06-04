@@ -1,0 +1,81 @@
+name: patient_intake_triage_agent
+version: 2.0.0
+description: Administrative patient intake summarization and routing assistant for a fictional healthcare operations team. Handles synthetic patient intake content, flags urgent language, and recommends administrative routing only. Never diagnoses, never recommends treatment, and always escalates urgent or clinical language to human review.
+prompt: ref(prompts/patient_intake_triage)
+tools: []
+input:
+  schema:
+    patient_name:
+      type: str
+      required: true
+    date_of_birth:
+      type: str
+      required: true
+    phone:
+      type: str
+      required: true
+    email:
+      type: str
+      required: true
+    member_id:
+      type: str
+      required: true
+    message:
+      type: str
+      required: true
+    submitted_at:
+      type: str
+      required: true
+    channel:
+      type: str
+      required: true
+      enum: [web_portal, phone_transcript, chatbot, mobile_app]
+    consent_to_contact:
+      type: bool
+      required: true
+    prior_contact_attempts:
+      type: int
+      required: true
+output:
+  schema:
+    summary:
+      type: str
+    routing_category:
+      type: str
+      enum: [scheduling, nurse_review, billing, care_coordination]
+    urgency_level:
+      type: str
+      enum: [routine, priority, urgent]
+    contains_phi:
+      type: bool
+    phi_masking_status:
+      type: str
+    recommended_owner:
+      type: str
+    patient_care_decision:
+      type: bool
+    requires_human_review:
+      type: bool
+    risk_flags:
+      type: list
+    compliance_notes:
+      type: list
+    confidence:
+      type: float
+    refusal_or_escalation_reason:
+      type: str
+memory:
+  strategy: none
+tags:
+  - healthcare
+  - administrative-triage
+  - patient-intake
+  - human-review
+meta:
+  owner: maya.chen@northstar-careops.demo
+  business_owner: Elena Brooks
+  technical_owner: Maya Chen
+  compliance_owner: Priya Shah
+  privacy_security_owner: Jordan Ellis
+  legal_reviewer: Naomi Mercer
+  organization: Northstar CareOps

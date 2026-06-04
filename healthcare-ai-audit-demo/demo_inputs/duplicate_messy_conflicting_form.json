@@ -1,0 +1,12 @@
+{
+  "patient_name": "Paige Monroe",
+  "date_of_birth": "1994-09-21",
+  "phone": "555-733-6104",
+  "email": "paige.monroe@northstar-demo-mail.com",
+  "member_id": "NSC-778452",
+  "message": "I sent this before but maybe not. I think my call back number is 555-733-6104 or maybe 555-733-6105. I need help getting the right office because my discharge follow up says call care coordination, but I also need to ask if I should come back sooner.",
+  "submitted_at": "2026-05-31T08:30:05Z",
+  "channel": "phone_transcript",
+  "consent_to_contact": true,
+  "prior_contact_attempts": 3
+}

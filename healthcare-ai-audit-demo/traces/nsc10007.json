@@ -1,0 +1,42 @@
+{
+  "run_id": "nsc10007",
+  "trace_id": "nsc10007",
+  "parent_run_id": null,
+  "agent": "patient_intake_triage_agent",
+  "model": "claude-sonnet-4-5",
+  "provider": "anthropic",
+  "started_at": "2026-05-31T08:30:13",
+  "steps": [
+    {
+      "type": "prompt",
+      "timestamp": "2026-05-31T08:30:13",
+      "content": "Northstar CareOps patient intake triage prompt v2 rendered for duplicate_messy_conflicting_form.json"
+    },
+    {
+      "type": "response",
+      "timestamp": "2026-05-31T08:30:16",
+      "content": "{\n  \"summary\": \"The patient submitted a duplicate and messy follow-up request with conflicting callback details and asked for the correct office for discharge coordination. Staff review is needed because the intake includes inconsistent identifiers and a possible care-timing question.\",\n  \"routing_category\": \"care_coordination\",\n  \"urgency_level\": \"priority\",\n  \"contains_phi\": true,\n  \"phi_masking_status\": \"partial_mask_applied\",\n  \"recommended_owner\": \"Care Coordination Desk\",\n  \"patient_care_decision\": false,\n  \"requires_human_review\": true,\n  \"risk_flags\": [\n    \"conflicting_contact_details\",\n    \"duplicate_submission\",\n    \"post_discharge_question\"\n  ],\n  \"compliance_notes\": [\n    \"Conflicting contact details require human validation.\",\n    \"The agent did not answer whether the patient should return sooner.\",\n    \"A human should reconcile the duplicate intake before outreach.\"\n  ],\n  \"confidence\": 0.72,\n  \"refusal_or_escalation_reason\": \"The message mixes administrative routing with a possible clinical follow-up question, so human review is required.\"\n}",
+      "duration_ms": 2818
+    }
+  ],
+  "status": "success",
+  "context": {
+    "demo_project": "healthcare-ai-audit-demo",
+    "organization": "Northstar CareOps",
+    "prompt_version": "v2"
+  },
+  "prompt_template": "ref(prompts/patient_intake_triage)",
+  "prompt_hash": "sha256:5cdcc801c21a16ba",
+  "input_hash": "sha256:b1ebe4dcdb97e054",
+  "output_hash": "sha256:db11217a00aa14f1",
+  "tokens": {
+    "input": 593,
+    "output": 204,
+    "total": 797
+  },
+  "cost_usd": 0.004838,
+  "retrieval_chunks": [],
+  "tool_calls": [],
+  "finished_at": "2026-05-31T08:30:16",
+  "duration_ms": 2818
+}

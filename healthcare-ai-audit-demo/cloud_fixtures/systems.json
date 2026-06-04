@@ -1,0 +1,47 @@
+{
+  "project": {
+    "id": "northstar-careops-demo",
+    "name": "healthcare-ai-audit-demo",
+    "organization": "Northstar CareOps"
+  },
+  "systems": [
+    {
+      "system_id": "patient_intake_triage_agent",
+      "display_name": "Patient Intake Triage Agent",
+      "organization": "Northstar CareOps",
+      "status": "under_review",
+      "system_type": "agent",
+      "domain": "healthcare operations",
+      "intended_use": "Administrative intake summarization and routing",
+      "prohibited_use": [
+        "diagnosis",
+        "treatment recommendation",
+        "autonomous patient-care decisions"
+      ],
+      "risk_level": "HIGH",
+      "risk_justification": "Patient-facing intake workflow with PHI-like content and urgent symptom language, mitigated by human review requirements and non-clinical scope.",
+      "affects_patient_care": "indirectly",
+      "processes_phi": true,
+      "pii_masking_enabled": true,
+      "human_oversight_required": true,
+      "provider": "anthropic",
+      "model_id": "claude-sonnet-4-5",
+      "prompt_template": "ref(prompts/patient_intake_triage)",
+      "active_prompt_version": "v2",
+      "business_owner": "Elena Brooks",
+      "technical_owner": "Maya Chen",
+      "compliance_owner": "Priya Shah",
+      "privacy_security_owner": "Jordan Ellis",
+      "legal_reviewer": "Naomi Mercer",
+      "data_sources": [
+        "synthetic intake forms",
+        "synthetic administrative triage policy"
+      ],
+      "evidence_links": [
+        "target/governance_report.json",
+        "target/model_cards/patient_intake_triage_agent_model_card.json",
+        "lineage/"
+      ]
+    }
+  ]
+}

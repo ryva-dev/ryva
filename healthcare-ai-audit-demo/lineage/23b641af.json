@@ -1,0 +1,26 @@
+{
+  "run_id": "23b641af",
+  "parent_run_id": null,
+  "trace_id": "23b641af",
+  "agent": "patient_intake_triage_agent",
+  "model": "claude-sonnet-4-5",
+  "provider": "anthropic",
+  "prompt_template": "ref(prompts/patient_intake_triage)",
+  "prompt_hash": "sha256:7aec9755c84319ff",
+  "input_hash": "sha256:984ace4bf82071f2",
+  "output_hash": "sha256:7a509d576750a4df",
+  "started_at": "2026-06-03T23:09:09.849556",
+  "finished_at": "2026-06-03T23:09:17.863070",
+  "duration_ms": 8013,
+  "status": "success",
+  "tokens": {
+    "input": 880,
+    "output": 375,
+    "total": 1255
+  },
+  "cost_usd": 0.008265,
+  "context": {},
+  "retrieval_chunks": [],
+  "tool_calls": [],
+  "signature": "7c039c0ee08562634eb28262c4a9745fbf825b3deacfdcbeb069f5892f28b37c"
+}

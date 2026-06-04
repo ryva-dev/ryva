@@ -1,0 +1,12 @@
+{
+  "patient_name": "Riley Bennett",
+  "date_of_birth": "1973-12-27",
+  "phone": "555-642-1901",
+  "email": "riley.bennett@northstar-demo-mail.com",
+  "member_id": "NSC-662701",
+  "message": "I had a visit on Monday and my discharge paperwork says to contact care coordination if I still have questions about the follow-up process. I want to make sure I reach the right team.",
+  "submitted_at": "2026-05-29T08:55:07Z",
+  "channel": "phone_transcript",
+  "consent_to_contact": true,
+  "prior_contact_attempts": 1
+}

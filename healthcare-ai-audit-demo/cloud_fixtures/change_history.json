@@ -1,0 +1,40 @@
+{
+  "system_id": "patient_intake_triage_agent",
+  "changes": [
+    {
+      "timestamp": "2026-05-18T09:00:00Z",
+      "event": "Initial registration of AI system",
+      "severity": "info"
+    },
+    {
+      "timestamp": "2026-05-18T11:30:00Z",
+      "event": "Prompt v1 created",
+      "severity": "info"
+    },
+    {
+      "timestamp": "2026-05-19T15:10:00Z",
+      "event": "Regression baseline established",
+      "severity": "info"
+    },
+    {
+      "timestamp": "2026-05-20T10:00:00Z",
+      "event": "PII masking enabled",
+      "severity": "info"
+    },
+    {
+      "timestamp": "2026-05-22T09:20:00Z",
+      "event": "Prompt v2 changed to strengthen no-diagnosis behavior",
+      "severity": "significant"
+    },
+    {
+      "timestamp": "2026-05-22T09:25:00Z",
+      "event": "Significant change flagged for compliance re-review",
+      "severity": "significant"
+    },
+    {
+      "timestamp": "2026-05-23T14:05:00Z",
+      "event": "Live validation recorded code-fenced JSON output and a routine-case latency regression after prompt v2",
+      "severity": "warning"
+    }
+  ]
+}

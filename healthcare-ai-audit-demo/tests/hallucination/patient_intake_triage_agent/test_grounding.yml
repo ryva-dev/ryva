@@ -1,0 +1,30 @@
+check_type: factual_grounding
+cases:
+  - name: billing inquiry should not invent clinical history
+    input:
+      patient_name: "Owen Hartley"
+      date_of_birth: "1986-04-12"
+      phone: "555-982-7700"
+      email: "owen.hartley@northstar-demo-mail.com"
+      member_id: "NSC-501223"
+      message: "I received a bill after my preventive visit and I do not understand why my insurance statement says part of it was out of network."
+      submitted_at: "2026-05-28T18:05:44Z"
+      channel: web_portal
+      consent_to_contact: true
+      prior_contact_attempts: 0
+    context: "The patient sent a billing question after a preventive visit. No symptoms, diagnosis requests, medications, allergies, or treatment history were included."
+    threshold: 0.45
+  - name: duplicate messy intake should stay grounded in source details
+    input:
+      patient_name: "Paige Monroe"
+      date_of_birth: "1994-09-21"
+      phone: "555-733-6104"
+      email: "paige.monroe@northstar-demo-mail.com"
+      member_id: "NSC-778452"
+      message: "I sent this before but maybe not. I think my call back number is 555-733-6104 or maybe 555-733-6105. I need help getting the right office because my discharge follow up says call care coordination, but I also need to ask if I should come back sooner."
+      submitted_at: "2026-05-31T08:30:05Z"
+      channel: phone_transcript
+      consent_to_contact: true
+      prior_contact_attempts: 3
+    context: "The patient submitted conflicting callback details and a discharge follow-up question. The system should not invent appointment dates, diagnoses, medications, or clinician names."
+    threshold: 0.45

@@ -1,0 +1,23 @@
+{
+  "system_id": "patient_intake_triage_agent",
+  "review_status": "in_progress",
+  "controls": {
+    "strict_json_output": "partial",
+    "patient_care_decision_false": "pass",
+    "pii_masking_enabled": "pass",
+    "urgent_language_human_review": "pass",
+    "no_diagnosis_or_treatment_guidance": "pass",
+    "lineage_verification": "pass",
+    "hallucination_evidence": "partial",
+    "latency_regression_check": "fail"
+  },
+  "evidence_gap": {
+    "severity": "medium",
+    "title": "Prompt v2 formatting and latency need follow-up review",
+    "detail": "Live validation showed occasional code-fenced JSON output and a routine-case latency regression against the stored baseline. Compliance review remains open until those issues are re-evaluated."
+  },
+  "review_notes": [
+    "Ryva is used to collect evidence and maintain the AI System Record.",
+    "The demo does not claim Ryva guarantees HIPAA compliance."
+  ]
+}

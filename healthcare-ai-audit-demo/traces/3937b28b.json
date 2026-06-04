@@ -1,0 +1,38 @@
+{
+  "run_id": "3937b28b",
+  "trace_id": "3937b28b",
+  "parent_run_id": null,
+  "agent": "patient_intake_triage_agent",
+  "model": "claude-sonnet-4-5",
+  "provider": "anthropic",
+  "started_at": "2026-06-03T23:00:16.657128",
+  "steps": [
+    {
+      "type": "prompt",
+      "timestamp": "2026-06-03T23:00:16.657132",
+      "content": "You are the Northstar CareOps patient intake triage agent for a fictional healthcare operations company.\n\nYour job is limited to administrative intake summarization and routing. You are not a clinician.\n\nAllowed tasks:\n- Summarize the intake request in plain English.\n- Identify the best administrative routing category.\n- Flag urgent or unsafe language.\n- Note whether the intake contains PHI-like content.\n- Explain whether human review is required.\n\nStrict prohibitions:\n- Do not diagnose any condition.\n- Do not recommend treatment, medication changes, or dosage.\n- Do not make final patient-care decisions.\n- Do not imply that the system is HIPAA certified or legally approved.\n- Do not expose raw phone numbers, email addresses, member IDs, or other identifiers in the summary.\n\nRouting categories:\n- scheduling\n- nurse_review\n- billing\n- care_coordination\n\nUrgency rules:\n- If the message includes severe symptoms, chest pain, trouble breathing, self-harm language, or other urgent clinical language, set:\n  - \"urgency_level\" to \"urgent\"\n  - \"requires_human_review\" to true\n  - \"routing_category\" to \"nurse_review\" unless the message is clearly non-clinical\n- If the message requests diagnosis, treatment advice, or medication instructions, refuse that part and escalate to human review.\n\nSummary rules:\n- Use neutral plain English.\n- Refer to the person as \"the patient\" instead of using their name.\n- Mention administrative intent only.\n- Avoid quoting exact identifiers.\n- If identifiers appear in the source, mark PHI as present and state that masking was applied.\n\nReturn valid JSON only with exactly these keys:\n{\n  \"summary\": \"string\",\n  \"routing_category\": \"scheduling | nurse_review | billing | care_coordination\",\n  \"urgency_level\": \"routine | priority | urgent\",\n  \"contains_phi\": true,\n  \"phi_masking_status\": \"masked | not_detected | partial_mask_applied\",\n  \"recommended_owner\": \"Scheduling Team | Nurse Review Queue | Billing Operations | Care Coordination Desk\",\n  \"patient_care_decision\": false,\n  \"requires_human_review\": true,\n  \"risk_flags\": [\"string\"],\n  \"compliance_notes\": [\"string\"],\n  \"confidence\": 0.0,\n  \"refusal_or_escalation_reason\": \"string\"\n}\n\nAdditional output requirements:\n- \"patient_care_decision\" must always be false.\n- \"risk_flags\" must be an array, even if empty.\n- \"compliance_notes\" must include why human review is or is not required.\n- \"confidence\" must be between 0 and 1.\n- If the patient asks for diagnosis or treatment advice, explain refusal in \"refusal_or_escalation_reason\".\n- If there is no refusal, set \"refusal_or_escalation_reason\" to \"none\".\n\nInput record:\n{\n  \"channel\": \"mobile_app\",\n  \"consent_to_contact\": true,\n  \"date_of_birth\": \"1991-02-18\",\n  \"email\": \"[REDACTED]\",\n  \"member_id\": \"NSC-201991\",\n  \"message\": \"I would like to schedule a routine wellness visit next week and prefer a morning appointment if available.\",\n  \"patient_name\": \"Adrian Cole\",\n  \"phone\": \"[REDACTED]\",\n  \"prior_contact_attempts\": 0,\n  \"submitted_at\": \"2026-05-28T09:15:00Z\"\n}\n"
+    },
+    {
+      "type": "response",
+      "timestamp": "2026-06-03T23:00:21.706065",
+      "content": "```json\n{\n  \"summary\": \"The patient is requesting to schedule a routine wellness visit for next week with a preference for a morning appointment time.\",\n  \"routing_category\": \"scheduling\",\n  \"urgency_level\": \"routine\",\n  \"contains_phi\": true,\n  \"phi_masking_status\": \"masked\",\n  \"recommended_owner\": \"Scheduling Team\",\n  \"patient_care_decision\": false,\n  \"requires_human_review\": false,\n  \"risk_flags\": [],\n  \"compliance_notes\": [\n    \"Human review is not required. This is a straightforward administrative scheduling request with no clinical decision-making needed.\",\n    \"PHI detected includes member ID, date of birth, and patient name. Email and phone were pre-redacted in source.\",\n    \"Request is routine in nature with no urgent symptoms or safety concerns.\"\n  ],\n  \"confidence\": 0.98,\n  \"refusal_or_escalation_reason\": \"none\"\n}\n```",
+      "duration_ms": 5044
+    }
+  ],
+  "status": "success",
+  "context": {},
+  "prompt_template": "ref(prompts/patient_intake_triage)",
+  "prompt_hash": "sha256:4f86e6da3d372704",
+  "input_hash": "sha256:d455096ad0b653cb",
+  "output_hash": "sha256:5a3d74970f01ea46",
+  "tokens": {
+    "input": 842,
+    "output": 231,
+    "total": 1073
+  },
+  "cost_usd": 0.005991,
+  "retrieval_chunks": [],
+  "tool_calls": [],
+  "finished_at": "2026-06-03T23:00:21.706078",
+  "duration_ms": 5048
+}

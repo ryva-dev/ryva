@@ -1,0 +1,12 @@
+{
+  "patient_name": "Nina Alvarez",
+  "date_of_birth": "1988-07-15",
+  "phone": "555-410-9921",
+  "email": "nina.alvarez@northstar-demo-mail.com",
+  "member_id": "NSC-440812",
+  "message": "I had a visit yesterday and now I feel pressure in my chest and shortness of breath. I need to know if this is serious and what I should do.",
+  "submitted_at": "2026-05-30T14:22:11Z",
+  "channel": "web_portal",
+  "consent_to_contact": true,
+  "prior_contact_attempts": 1
+}

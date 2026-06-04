@@ -1,0 +1,30 @@
+{
+  "run_id": "nsc10006",
+  "parent_run_id": null,
+  "trace_id": "nsc10006",
+  "agent": "patient_intake_triage_agent",
+  "model": "claude-sonnet-4-5",
+  "provider": "anthropic",
+  "prompt_template": "ref(prompts/patient_intake_triage)",
+  "prompt_hash": "sha256:5cdcc801c21a16ba",
+  "input_hash": "sha256:ad65e96404295cb9",
+  "output_hash": "sha256:aee97e7621c26b71",
+  "started_at": "2026-05-30T19:40:09",
+  "finished_at": "2026-05-30T19:40:12",
+  "duration_ms": 2572,
+  "status": "success",
+  "tokens": {
+    "input": 546,
+    "output": 176,
+    "total": 722
+  },
+  "cost_usd": 0.004278,
+  "context": {
+    "demo_project": "healthcare-ai-audit-demo",
+    "organization": "Northstar CareOps",
+    "prompt_version": "v2"
+  },
+  "retrieval_chunks": [],
+  "tool_calls": [],
+  "signature": "5097606a560647a0e29210174660b0e16469ca109190b925d7b12195dd6a145a"
+}
