@@ -29,10 +29,11 @@ def _resolve_root(root: Path | None) -> Path:
 def init(
     name: str = typer.Argument(..., help="Project name"),
     path: Path | None = typer.Option(None, help="Where to create the project"),
+    template: str = typer.Option("default", "--template", help="Project template: default, healthcare"),
 ):
     """Initialize a new Ryva project."""
     from ryva.init_project import scaffold
-    scaffold(name, path or Path.cwd() / name)
+    scaffold(name, path or Path.cwd() / name, template=template)
 
 
 @app.command()
@@ -940,6 +941,144 @@ def ci_setup(
     console.print("  RYVA_PROJECT_ID    — Ryva Cloud project ID (if using cloud sync)")
 
 
+@app.command()
+def status(
+    env: str = typer.Option("staging", "--env", help="Environment to check: dev, staging, production"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
+):
+    """Show release gate status for the current environment."""
+    from ryva.release_gates import check_release_gates
+    r = _resolve_root(root)
+
+    console.print(f"[bold]Checking release gates for: {env.upper()}[/bold]\n")
+    result = check_release_gates(env=env, root=r)
+
+    if result.passed:
+        console.print(f"[bold green]✓ All gates passed — ready to sync to {env}[/bold green]")
+    else:
+        console.print(
+            f"[bold red]✗ {len(result.failures)} gate(s) blocking {env} sync:[/bold red]"
+        )
+        for f in result.failures:
+            console.print(f"  • {f}")
+
+    if result.warnings:
+        console.print()
+        console.print("[yellow]Warnings:[/yellow]")
+        for w in result.warnings:
+            console.print(f"  ⚠ {w}")
+
+    if result.agents_checked:
+        console.print()
+        console.print(f"[dim]Agents checked: {', '.join(result.agents_checked)}[/dim]")
+
+    raise typer.Exit(0 if result.passed else 1)
+
+
+exceptions_app = typer.Typer(help="Manage policy exceptions and risk waivers.")
+app.add_typer(exceptions_app, name="exceptions")
+
+
+@exceptions_app.command("create")
+def exceptions_create(
+    agent: str = typer.Option(..., "--agent", "-a", help="Agent name"),
+    policy: str = typer.Option(..., "--policy", help="Policy name being excepted"),
+    reason: str = typer.Option(..., "--reason", help="Business justification"),
+    approved_by: str = typer.Option(..., "--approved-by", help="Name of approver"),
+    expires: str = typer.Option(..., "--expires", help="Expiry date YYYY-MM-DD"),
+    risk_level: str = typer.Option("medium", "--risk-level", help="Risk level: low, medium, high"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
+):
+    """Create a formal policy exception with expiry date."""
+    import uuid
+    from datetime import UTC, datetime
+
+    valid_levels = {"low", "medium", "high"}
+    if risk_level not in valid_levels:
+        console.print(f"[red]--risk-level must be one of: {', '.join(sorted(valid_levels))}[/red]")
+        raise typer.Exit(1)
+
+    r = _resolve_root(root)
+    target_dir = r / "target"
+    target_dir.mkdir(exist_ok=True)
+
+    exceptions_file = target_dir / "exceptions.json"
+    existing: list = []
+    if exceptions_file.exists():
+        try:
+            existing = json.loads(exceptions_file.read_text())
+        except Exception:
+            pass
+
+    exception_id = str(uuid.uuid4())[:8]
+    exception = {
+        "id": exception_id,
+        "agent": agent,
+        "policy": policy,
+        "reason": reason,
+        "approved_by": approved_by,
+        "risk_level": risk_level,
+        "expires_at": f"{expires}T23:59:59Z",
+        "created_at": datetime.now(UTC).isoformat(),
+        "status": "active",
+    }
+    existing.append(exception)
+    exceptions_file.write_text(json.dumps(existing, indent=2))
+
+    console.print(f"[bold green]✓ Exception created: {exception_id}[/bold green]")
+    console.print(f"  Agent:       {agent}")
+    console.print(f"  Policy:      {policy}")
+    console.print(f"  Approved by: {approved_by}")
+    console.print(f"  Expires:     {expires}")
+    console.print("[yellow]  ⚠ This exception will appear in your audit package.[/yellow]")
+
+
+@exceptions_app.command("list")
+def exceptions_list(
+    agent: str | None = typer.Option(None, "--agent", "-a", help="Filter by agent name"),
+    include_expired: bool = typer.Option(False, "--include-expired", help="Show expired exceptions too"),
+    root: Path | None = typer.Option(None, "--root", help="Project root"),
+):
+    """List all policy exceptions."""
+    from datetime import UTC, datetime
+
+    r = _resolve_root(root)
+    exceptions_file = r / "target" / "exceptions.json"
+
+    if not exceptions_file.exists():
+        console.print("[dim]No exceptions recorded.[/dim]")
+        return
+
+    try:
+        exceptions = json.loads(exceptions_file.read_text())
+    except Exception:
+        console.print("[red]Could not read exceptions file.[/red]")
+        raise typer.Exit(1)
+
+    now = datetime.now(UTC).isoformat()
+    shown = 0
+    for exc in exceptions:
+        if agent and exc.get("agent") != agent:
+            continue
+        expired = exc.get("expires_at", "") < now
+        if expired and not include_expired:
+            continue
+        status = "EXPIRED" if expired else "ACTIVE"
+        color = "red" if expired else "yellow"
+        console.print(
+            f"  [{color}]{status}[/{color}]"
+            f" [{exc.get('id')}] {exc.get('agent')} — {exc.get('policy')}"
+        )
+        console.print(f"  Reason: {exc.get('reason')}")
+        console.print(f"  Approved by: {exc.get('approved_by')}")
+        console.print(f"  Expires: {(exc.get('expires_at') or '')[:10]}")
+        console.print()
+        shown += 1
+
+    if shown == 0:
+        console.print("[dim]No exceptions found.[/dim]")
+
+
 if __name__ == "__main__":
     app()
 
@@ -976,6 +1115,10 @@ def cloud_login_cmd(
 def cloud_sync_cmd(
     root: Path = typer.Option(None, "--root", help="Project root"),
     env: str = typer.Option("dev", "--env", help="Target environment: dev, staging, production"),
+    require_approvals: bool = typer.Option(
+        False, "--require-approvals",
+        help="Block sync if required approvals are missing or stale.",
+    ),
 ):
     """Sync traces, lineage, compliance reports, and model cards to Ryva Cloud."""
     import json
@@ -987,6 +1130,29 @@ def cloud_sync_cmd(
     from ryva.utils import find_project_root
 
     r = root or find_project_root()
+
+    # Production always enforces gates
+    if env == "production":
+        require_approvals = True
+
+    if require_approvals:
+        from ryva.release_gates import check_release_gates
+        gate = check_release_gates(env=env, root=r)
+        if not gate.passed:
+            console.print(
+                f"[bold red]✗ Sync blocked — release gates failed for {env}:[/bold red]"
+            )
+            for failure in gate.failures:
+                console.print(f"  • {failure}")
+            console.print()
+            console.print(
+                "[dim]Resolve these issues or use --env dev to sync without gates.[/dim]"
+            )
+            raise typer.Exit(1)
+        if gate.warnings:
+            for w in gate.warnings:
+                console.print(f"[yellow]  ⚠ {w}[/yellow]")
+
     token = get_token(r)
     project_id = get_project_id(r)
 

@@ -219,6 +219,13 @@ def compile_project(root: Path, strict: bool = False) -> bool:
                 f"[yellow]⚠ {len(review_needed)} change(s) require compliance review "
                 f"— run 'ryva changes --requires-review'[/yellow]"
             )
+        from ryva.release_gates import invalidate_stale_approvals
+        invalidated = invalidate_stale_approvals(changes, root)
+        if invalidated:
+            console.print(
+                f"[yellow]⚠ {len(invalidated)} approval(s) marked stale — "
+                f"re-review required before syncing to staging or production[/yellow]"
+            )
 
     if prompt_hashes:
         console.print(f"[dim]Hashed {len(prompt_hashes)} prompt template(s)[/dim]")

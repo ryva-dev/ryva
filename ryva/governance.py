@@ -137,10 +137,30 @@ def generate_report(root: Path) -> dict:
     )
     score = sum(1 for item in checklist if item["status"] == "✓")
 
+    exceptions: list[dict] = []
+    exceptions_file = root / "target" / "exceptions.json"
+    if exceptions_file.exists():
+        try:
+            exceptions = json.loads(exceptions_file.read_text())
+        except Exception:
+            pass
+    now_iso = datetime.now(UTC).isoformat()
+    active_exceptions = [e for e in exceptions if e.get("expires_at", "") >= now_iso]
+    expired_exceptions = [e for e in exceptions if e.get("expires_at", "") < now_iso]
+
     return {
-        "generated_at": datetime.now(UTC).isoformat(),
+        "generated_at": now_iso,
         "project": project.get("name", root.name),
         "ryva_version": manifest.get("ryva_version", "0.1.0"),
+        "exceptions": {
+            "total": len(exceptions),
+            "active": active_exceptions,
+            "expired": expired_exceptions,
+            "note": (
+                "All exceptions represent formally accepted risk decisions. "
+                "Each exception has an expiry date and named approver."
+            ) if exceptions else "No exceptions recorded.",
+        },
         "summary": {
             "total_ai_systems": len(bom_entries),
             "agents": len(agents),

@@ -1,0 +1,20 @@
+name: my-healthcare-ai-project
+version: "1.0.0"
+description: "AI system for [describe your use case]"
+providers:
+  default: anthropic
+  anthropic:
+    model: claude-haiku-4-5-20251001
+    api_key: "{{ env_var('ANTHROPIC_API_KEY') }}"
+runtime:
+  max_tokens: 4096
+  timeout_ms: 10000
+  retries: 2
+pii_masking: true
+compliance_frameworks:
+  - hipaa
+  - eu_ai_act
+  - colorado_ai_act
+targets:
+  dev:
+    type: local

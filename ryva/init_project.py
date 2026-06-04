@@ -11,7 +11,7 @@ yaml = YAML()
 yaml.default_flow_style = False
 
 
-def scaffold(name: str, dest: Path) -> None:
+def scaffold(name: str, dest: Path, template: str = "default") -> None:
     console.print(Panel(f"[bold cyan]Initializing Ryva project:[/bold cyan] [bold]{name}[/bold]", expand=False))
 
     dest.mkdir(parents=True, exist_ok=True)
@@ -31,7 +31,12 @@ def scaffold(name: str, dest: Path) -> None:
     _write_readme(dest, name)
     _write_github_actions(dest)
 
+    if template != "default":
+        _apply_template(dest, template)
+
     console.print(f"\n[bold green]✓ Project '{name}' created at {dest}[/bold green]")
+    if template != "default":
+        console.print(f"[dim]Template: {template}[/dim]")
     console.print("\nNext steps:")
     console.print("  [cyan]cd {name}[/cyan]")
     console.print("  [cyan]export ANTHROPIC_API_KEY=your_key[/cyan]")
@@ -189,6 +194,24 @@ def _write_github_actions(dest: Path) -> None:
         template_path = Path(__file__).parent / "templates" / "github_actions.yml"
         target.write_text(template_path.read_text())
         console.print("  [dim]created .github/workflows/ryva-governance.yml[/dim]")
+
+
+def _apply_template(dest: Path, template: str) -> None:
+    """Copy template-specific files onto the scaffolded project directory."""
+    import shutil
+    template_dir = Path(__file__).parent / "templates" / template
+    if not template_dir.exists():
+        console.print(f"[yellow]  Template '{template}' not found — using default scaffold.[/yellow]")
+        return
+    for src in template_dir.rglob("*"):
+        rel = src.relative_to(template_dir)
+        dst = dest / rel
+        if src.is_dir():
+            dst.mkdir(parents=True, exist_ok=True)
+        else:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(str(src), str(dst))
+            console.print(f"  [dim]applied {rel} from {template} template[/dim]")
 
 
 def _write_gitignore(dest: Path):

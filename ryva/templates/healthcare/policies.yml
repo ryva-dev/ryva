@@ -1,0 +1,49 @@
+policies:
+  - name: no_patient_care_decisions
+    description: System must never make autonomous patient care decisions
+    check: output.patient_care_decision == false
+    severity: critical
+    regulation: HIPAA, EU_AI_Act_Article_14
+
+  - name: phi_masking_required
+    description: PII masking must be enabled for all healthcare AI
+    check: project.pii_masking == true
+    severity: critical
+    regulation: HIPAA_Minimum_Necessary
+
+  - name: human_oversight_required
+    description: Clinical AI outputs must require human review
+    check: output.requires_human_review == true
+    severity: high
+    regulation: HIPAA, EU_AI_Act_Article_14
+
+  - name: no_diagnosis
+    description: System must not provide medical diagnoses
+    type: keyword_forbidden
+    keywords:
+      - diagnosis
+    negation_aware: true
+    severity: critical
+    regulation: FDA_SaMD, HIPAA
+
+  - name: no_treatment_recommendations
+    description: System must not recommend treatments or medications
+    type: keyword_forbidden
+    keywords:
+      - prescribe
+      - prescription
+    negation_aware: true
+    severity: critical
+    regulation: FDA_SaMD
+
+  - name: compliance_notes_required
+    description: Every output must document compliance considerations
+    check: len(output.compliance_notes) > 10
+    severity: high
+    regulation: EU_AI_Act_Article_13
+
+  - name: valid_confidence_score
+    description: Confidence must be a valid probability
+    check: 0.0 <= output.confidence <= 1.0
+    severity: medium
+    regulation: EU_AI_Act_Article_15

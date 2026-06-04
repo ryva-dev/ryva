@@ -1,0 +1,42 @@
+name: "[agent-name]"
+version: "1.0.0"
+description: "[Brief description of this healthcare AI system]"
+model_provider: anthropic
+model_id: claude-haiku-4-5-20251001
+use_case: healthcare
+risk_level: HIGH
+compliance_frameworks:
+  - HIPAA
+  - EU AI Act (Annex III — High Risk)
+  - Colorado AI Act
+intended_use:
+  primary: "[Describe primary intended use]"
+  out_of_scope:
+    - Direct patient care decisions without human review
+    - Medical diagnosis
+    - Treatment prescription
+    - Emergency medical guidance
+data_handling:
+  phi_masking: true
+  data_retention: "Per HIPAA minimum necessary standard"
+  audit_logging: true
+human_oversight:
+  required: true
+  review_process: "[Describe human review process]"
+  escalation_path: "[Describe escalation path]"
+limitations:
+  - Not a substitute for clinical judgment
+  - Outputs require review by qualified healthcare professional
+  - Performance may vary across patient populations
+validation:
+  testing_required:
+    - schema
+    - alignment
+    - adversarial
+    - hallucination
+  minimum_test_cases: 20
+approval_requirements:
+  - technical
+  - privacy
+  - compliance
+  - legal
