@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from ryva.alignment import _apply_rule, check_output, load_policies
 
 # ---------------------------------------------------------------------------
@@ -242,3 +244,116 @@ class TestCodeFenceStripping:
         ]
         violations = check_output(fenced, policies)
         assert violations == [], f"False positives: {violations}"
+
+
+# ---------------------------------------------------------------------------
+# keyword_forbidden — negation-awareness (Fix 2)
+# ---------------------------------------------------------------------------
+
+class TestKeywordForbiddenNegation:
+    """Compliant outputs that mention forbidden terms in negated context must pass."""
+
+    _NEGATED = [
+        "This system does not provide diagnosis",
+        "No diagnosis is made by this system",
+        "The system never provides a diagnosis",
+        "patient_care_decision is always false — no diagnosis provided",
+        "This is not a diagnosis tool",
+        "Refusal to provide diagnosis: this is an administrative routing system",
+        "diagnosis is prohibited by design",
+    ]
+
+    _AFFIRMATIVE = [
+        "The diagnosis is hypertension",
+        "Based on symptoms, diagnosis: type 2 diabetes",
+        "I can provide a diagnosis for your condition",
+    ]
+
+    def test_negated_context_passes(self):
+        for text in self._NEGATED:
+            ok, detail = _apply_rule("keyword_forbidden", text, {"keywords": ["diagnosis"]})
+            assert ok, f"False positive on negated text: {text!r}  detail={detail!r}"
+
+    def test_affirmative_context_fails(self):
+        for text in self._AFFIRMATIVE:
+            ok, _ = _apply_rule("keyword_forbidden", text, {"keywords": ["diagnosis"]})
+            assert not ok, f"Should have violated for affirmative text: {text!r}"
+
+    def test_singular_keyword_key_supported(self):
+        """Policy may use 'keyword' (str) instead of 'keywords' (list)."""
+        ok, _ = _apply_rule("keyword_forbidden", "diagnosis confirmed", {"keyword": "diagnosis"})
+        assert not ok
+
+    def test_plain_forbidden_word_still_fails(self):
+        """Existing simple violation cases must still be caught."""
+        ok, _ = _apply_rule("keyword_forbidden", "This is bad", {"keywords": ["bad"]})
+        assert not ok
+
+    def test_multiple_occurrences_all_negated_passes(self):
+        text = "no diagnosis given, never provided a diagnosis to users"
+        ok, _ = _apply_rule("keyword_forbidden", text, {"keywords": ["diagnosis"]})
+        assert ok
+
+    def test_mixed_negated_and_affirmative_fails(self):
+        """If ANY occurrence is affirmative the policy must fire."""
+        text = "no diagnosis in most cases but diagnosis: hypertension was reported"
+        ok, _ = _apply_rule("keyword_forbidden", text, {"keywords": ["diagnosis"]})
+        assert not ok
+
+
+# ---------------------------------------------------------------------------
+# forbidden_pattern — JSON-aware regex (Fix 3)
+# ---------------------------------------------------------------------------
+
+_EMAIL_PATTERN = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
+
+
+class TestForbiddenPattern:
+    def test_field_name_does_not_trigger_email_pattern(self):
+        """Field name 'email_status' must not be matched by an email regex."""
+        payload = json.dumps({
+            "email_status": "verified",
+            "summary": "Patient called about appointment",
+            "routing": "scheduling",
+        })
+        ok, _ = _apply_rule("forbidden_pattern", payload, {"pattern": _EMAIL_PATTERN})
+        assert ok
+
+    def test_actual_email_in_value_triggers_violation(self):
+        """A real email address inside a JSON value must be caught."""
+        payload = json.dumps({"summary": "Contact patient at john.doe@example.com"})
+        ok, detail = _apply_rule("forbidden_pattern", payload, {"pattern": _EMAIL_PATTERN})
+        assert not ok
+        assert "pattern" in detail.lower() or "forbidden" in detail.lower()
+
+    def test_non_json_text_also_checked(self):
+        """Plain text output (not JSON) is still checked against the pattern."""
+        ok, _ = _apply_rule("forbidden_pattern", "Call alice@example.com now", {"pattern": _EMAIL_PATTERN})
+        assert not ok
+
+    def test_no_email_in_plain_text_passes(self):
+        ok, _ = _apply_rule("forbidden_pattern", "No contact info here", {"pattern": _EMAIL_PATTERN})
+        assert ok
+
+    def test_nested_json_values_checked(self):
+        """Email nested inside a list value must be caught."""
+        payload = json.dumps({"contacts": [{"note": "reach out to bob@example.com"}]})
+        ok, _ = _apply_rule("forbidden_pattern", payload, {"pattern": _EMAIL_PATTERN})
+        assert not ok
+
+    def test_case_insensitive_by_default(self):
+        ok, _ = _apply_rule("forbidden_pattern", json.dumps({"v": "BAD word"}), {"pattern": r"bad"})
+        assert not ok
+
+    def test_case_sensitive_respects_flag(self):
+        ok, _ = _apply_rule(
+            "forbidden_pattern", json.dumps({"v": "BAD word"}),
+            {"pattern": r"bad", "case_sensitive": True}
+        )
+        assert ok
+
+    def test_fenced_json_values_checked(self):
+        """Fenced JSON output values are also checked (fences stripped first)."""
+        fenced = '```json\n{"summary": "contact me at eve@example.com"}\n```'
+        ok, _ = _apply_rule("forbidden_pattern", fenced, {"pattern": _EMAIL_PATTERN})
+        assert not ok

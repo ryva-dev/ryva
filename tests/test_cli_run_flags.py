@@ -78,6 +78,25 @@ class TestRunInputFile:
 
 
 class TestRunInputDir:
+    def test_input_dir_counts_successes_correctly(self, tmp_path):
+        """batch mode reports N/N based on exceptions raised, not a status field."""
+        _make_project(tmp_path)
+        input_dir = tmp_path / "inputs"
+        input_dir.mkdir()
+        (input_dir / "a.json").write_text('{"text": "first"}')
+        (input_dir / "b.json").write_text('{"text": "second"}')
+        (input_dir / "c.json").write_text('{"text": "third"}')
+
+        # run_agent returns an output dict with no 'status' key — all 3 must count as successes
+        with patch("ryva.runner.run_agent", return_value={"routing": "admin"}) as mock_run:
+            result = runner.invoke(app, [
+                "run", "--agent", "my_agent",
+                "--input-dir", str(input_dir),
+                "--root", str(tmp_path),
+            ])
+            assert mock_run.call_count == 3
+            assert "3/3" in result.output
+
     def test_input_dir_runs_against_each_file(self, tmp_path):
         _make_project(tmp_path)
         input_dir = tmp_path / "inputs"

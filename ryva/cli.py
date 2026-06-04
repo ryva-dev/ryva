@@ -99,12 +99,15 @@ def run(
             try:
                 batch_input = json.loads(f.read_text())
             except json.JSONDecodeError as e:
-                console.print(f"[red]Invalid JSON in {f.name}: {e}[/red]")
+                console.print(f"[red]  ✗ {f.name}: invalid JSON — {e}[/red]")
                 continue
             console.print(f"[dim]Running against {f.name}...[/dim]")
-            result = run_agent(r, agent, batch_input)
-            if result.get("status") == "success":
+            try:
+                run_agent(r, agent, batch_input)
                 passed += 1
+                console.print(f"[green]  ✓ {f.name}[/green]")
+            except Exception as e:
+                console.print(f"[red]  ✗ {f.name}: {e}[/red]")
         color = "green" if passed == len(files) else "yellow"
         console.print(f"\n[bold {color}]{passed}/{len(files)} runs succeeded.[/bold {color}]")
         raise typer.Exit(0 if passed == len(files) else 1)
@@ -752,173 +755,6 @@ def edge_report_cmd(
     r = root or find_project_root()
     edge_show_report(r, out)
 
-
-modelcard_app = typer.Typer(help="Generate model cards for AI governance and compliance.")
-app.add_typer(modelcard_app, name="modelcard")
-
-
-@modelcard_app.command("generate")
-def modelcard_generate(
-    agent: str = typer.Argument(..., help="Agent name to generate model card for"),
-    root: Path | None = typer.Option(None, "--root", help="Project root"),
-    out: Path | None = typer.Option(None, "--out", help="Output path for JSON file"),
-):
-    """Generate a model card for an agent."""
-    from ryva.model_card import (
-        generate_model_card,
-        print_model_card_summary,
-        save_model_card,
-    )
-    from ryva.utils import find_project_root
-    r = root or find_project_root()
-    card = generate_model_card(r, agent)
-    if not card:
-        raise typer.Exit(1)
-    output_path = out or save_model_card(r, agent, card)
-    if not out:
-        save_model_card(r, agent, card)
-    print_model_card_summary(card)
-    console.print(f"\n[bold green]✓ Model card saved to {output_path}[/bold green]")
-
-
-@modelcard_app.command("list")
-def modelcard_list(root: Path | None = typer.Option(None, "--root", help="Project root")):
-    """List all generated model cards."""
-    from rich.table import Table
-
-    from ryva.utils import find_project_root
-    r = root or find_project_root()
-    cards_dir = r / "target" / "model_cards"
-    if not cards_dir.exists():
-        console.print("[yellow]No model cards generated yet. Run: ryva modelcard generate <agent>[/yellow]")
-        return
-    table = Table(title="Model Cards", header_style="bold")
-    table.add_column("Agent", style="cyan")
-    table.add_column("Risk Level")
-    table.add_column("EU AI Act")
-    table.add_column("Generated")
-    for f in cards_dir.glob("*.json"):
-        card = json.loads(f.read_text())
-        risk = card.get("risk", {}).get("risk_level", "UNKNOWN")
-        risk_color = {"HIGH": "red", "MEDIUM": "yellow", "LOW": "green"}.get(risk, "white")
-        eu_category = card.get("compliance", {}).get("eu_ai_act", {}).get("risk_category", "UNKNOWN")
-        generated = card.get("generated_at", "")[:10]
-        table.add_row(
-            card.get("system", {}).get("name", f.stem),
-            f"[{risk_color}]{risk}[/{risk_color}]",
-            eu_category,
-            generated,
-        )
-    console.print(table)
-
-
-audit_app = typer.Typer(help="Generate and export audit packages for compliance.")
-app.add_typer(audit_app, name="audit")
-
-
-@audit_app.command("export")
-def audit_export_cmd(
-    root: Path | None = typer.Option(None, "--root", help="Project root"),
-    out: Path | None = typer.Option(None, "--out", help="Output path for the zip file"),
-):
-    """Export a complete audit package for regulators and compliance teams."""
-    from ryva.audit_export import export_audit_package
-    from ryva.utils import find_project_root
-    r = root or find_project_root()
-
-    console.print("\n[bold]Ryva Audit Export[/bold]")
-    console.print("[dim]Collecting governance reports, model cards, lineage records, and compliance documentation...[/dim]\n")
-
-    output_path = export_audit_package(r, out)
-
-    console.print("\n[bold green]✓ Audit package exported to:[/bold green]")
-    console.print(f"  [cyan]{output_path}[/cyan]")
-    console.print("\n[dim]This package contains everything an auditor, regulator, or legal team needs.[/dim]")
-    console.print("[dim]Share the zip file directly — no Ryva installation required to read it.[/dim]\n")
-
-
-# Cloud commands
-cloud_app = typer.Typer(help="Connect to Ryva Cloud.")
-app.add_typer(cloud_app, name="cloud")
-
-
-@cloud_app.command("login")
-def cloud_login_cmd(
-    email: str = typer.Option(..., "--email", prompt=True, help="Your Ryva Cloud email"),
-    password: str = typer.Option(..., "--password", prompt=True, hide_input=True, help="Your Ryva Cloud password"),
-    project_id: str = typer.Option(..., "--project-id", prompt=True, help="Your Ryva Cloud project ID"),
-):
-    """Login to Ryva Cloud."""
-    from ryva.cloud_sync import cloud_login, save_token
-    try:
-        result = cloud_login(email, password)
-        token = result.get('access_token')
-        if not token:
-            console.print('[red]Login failed — no token returned.[/red]')
-            raise typer.Exit(1)
-        save_token(token, project_id)
-        console.print(f'[bold green]✓ Logged in to Ryva Cloud[/bold green]')
-        console.print(f'[dim]Project ID: {project_id}[/dim]')
-        console.print(f'[dim]Token saved to ~/.ryva_cloud[/dim]')
-    except Exception as e:
-        console.print(f'[red]Login failed: {e}[/red]')
-        raise typer.Exit(1)
-
-
-@cloud_app.command("sync")
-def cloud_sync_cmd(
-    root: Path = typer.Option(None, "--root", help="Project root"),
-    token: str = typer.Option(None, "--token", help="Override cloud token"),
-    project_id: str = typer.Option(None, "--project-id", help="Override project ID"),
-):
-    """Sync local traces, lineage, and compliance data to Ryva Cloud."""
-    from ryva.cloud_sync import cloud_sync, get_token, get_project_id
-    from ryva.utils import find_project_root
-
-    r = root or find_project_root()
-    t = token or get_token(r)
-    p = project_id or get_project_id(r)
-
-    if not t:
-        console.print('[red]Not logged in. Run: ryva cloud login[/red]')
-        raise typer.Exit(1)
-
-    if not p:
-        console.print('[red]No project ID. Run: ryva cloud login --project-id YOUR_PROJECT_ID[/red]')
-        raise typer.Exit(1)
-
-    console.print(f'\n[bold]Syncing to Ryva Cloud...[/bold]')
-    console.print(f'[dim]Project: {r.name} → {p}[/dim]\n')
-
-    try:
-        results = cloud_sync(r, t, p)
-        console.print(f'[bold green]✓ Sync complete[/bold green]')
-        console.print(f'  Traces synced:      {results.get("traces_synced", 0)}')
-        console.print(f'  Model cards synced: {results.get("model_cards_synced", 0)}')
-        console.print(f'  Compliance synced:  {"✓" if results.get("compliance_synced") else "—"}')
-        if results.get('errors'):
-            console.print(f'\n[yellow]Warnings:[/yellow]')
-            for err in results['errors']:
-                console.print(f'  [dim]{err}[/dim]')
-    except Exception as e:
-        console.print(f'[red]Sync failed: {e}[/red]')
-        raise typer.Exit(1)
-
-
-@cloud_app.command("status")
-def cloud_status_cmd(root: Path = typer.Option(None, "--root", help="Project root")):
-    """Show cloud connection status."""
-    from ryva.cloud_sync import get_token, get_project_id
-    from ryva.utils import find_project_root
-    r = root or find_project_root()
-    t = get_token(r)
-    p = get_project_id(r)
-    if t and p:
-        console.print(f'[bold green]✓ Connected to Ryva Cloud[/bold green]')
-        console.print(f'  Project ID: {p}')
-        console.print(f'  Token: {t[:8]}...')
-    else:
-        console.print('[yellow]Not connected. Run: ryva cloud login[/yellow]')
 
 if __name__ == "__main__":
     app()

@@ -8,6 +8,86 @@ from rich.table import Table
 
 from ryva.utils import console, load_manifest, load_yaml
 
+# Patterns that indicate a keyword is used in a negated / compliant context.
+# {keyword} is substituted at check time; patterns are always matched case-insensitively.
+_NEGATION_PATTERNS = [
+    r"does not\b.{{0,30}}{keyword}",
+    r"do not\b.{{0,30}}{keyword}",
+    r"never\b.{{0,30}}{keyword}",
+    r"\bno\b\s+{keyword}",
+    r"\bnot\b.{{0,30}}{keyword}",
+    r"\bwithout\b.{{0,30}}{keyword}",
+    r"refus\w*.{{0,30}}{keyword}",
+    r"prohibit\w*.{{0,30}}{keyword}",
+    r"avoid\w*.{{0,30}}{keyword}",
+    r"{keyword}\b.{{0,30}}\b(not|never|false|prohibited)",
+    r"is\s+not\s+a\s+{keyword}",
+]
+
+
+def _is_affirmative_use(keyword: str, text: str, case_sensitive: bool = False) -> bool:
+    """Return True only if keyword appears in an affirmative (non-negated) context.
+
+    For each occurrence of the keyword, builds a 200-char context window and checks
+    whether any negation pattern match *overlaps* with the current keyword span.
+    This prevents a negation from one occurrence (e.g. "no diagnosis") from
+    accidentally covering a separate affirmative occurrence later in the same text.
+    Returns False only when every occurrence is covered by an overlapping negation.
+    """
+    check_kw = keyword if case_sensitive else keyword.lower()
+    check_text = text if case_sensitive else text.lower()
+
+    if check_kw not in check_text:
+        return False
+
+    kw_lower = keyword.lower()
+    negation_regexes = [
+        re.compile(pat.format(keyword=re.escape(kw_lower)), re.IGNORECASE)
+        for pat in _NEGATION_PATTERNS
+    ]
+
+    for m in re.finditer(re.escape(check_kw), check_text):
+        pos, kw_end = m.start(), m.end()
+        ctx_start = max(0, pos - 100)
+        ctx_end = min(len(check_text), kw_end + 100)
+        context = check_text[ctx_start:ctx_end]
+        rel_pos = pos - ctx_start
+        rel_end = kw_end - ctx_start
+
+        is_negated = False
+        for r in negation_regexes:
+            for neg_m in r.finditer(context):
+                # The negation match must genuinely overlap with this keyword span
+                if neg_m.start() <= rel_end and neg_m.end() >= rel_pos:
+                    is_negated = True
+                    break
+            if is_negated:
+                break
+
+        if not is_negated:
+            return True  # at least one affirmative occurrence
+
+    return False  # every occurrence is negated
+
+
+def _extract_string_values(data, depth: int = 0) -> list[str]:
+    """Recursively extract string values from JSON data, skipping field names."""
+    if depth > 10:
+        return []
+    if isinstance(data, str):
+        return [data]
+    if isinstance(data, dict):
+        out = []
+        for v in data.values():
+            out.extend(_extract_string_values(v, depth + 1))
+        return out
+    if isinstance(data, list):
+        out = []
+        for item in data:
+            out.extend(_extract_string_values(item, depth + 1))
+        return out
+    return []
+
 
 def load_policies(root: Path, project: dict) -> list[dict]:
     """Load policies from project.yml and an optional policies.yml file."""
@@ -47,13 +127,29 @@ def check_output(output_text: str, policies: list[dict]) -> list[dict]:
 
 def _apply_rule(rule_type: str, text: str, policy: dict) -> tuple[bool, str]:
     if rule_type == "keyword_forbidden":
-        keywords = policy.get("keywords", [])
+        # Support both 'keywords' (list) and 'keyword' (singular string)
+        keywords = policy.get("keywords") or (
+            [policy["keyword"]] if "keyword" in policy else []
+        )
         case_sensitive = policy.get("case_sensitive", False)
-        check_text = text if case_sensitive else text.lower()
         for kw in keywords:
-            check_kw = kw if case_sensitive else kw.lower()
-            if check_kw in check_text:
+            if _is_affirmative_use(kw, text, case_sensitive):
                 return False, f"Forbidden keyword found: '{kw}'"
+        return True, "OK"
+
+    if rule_type == "forbidden_pattern":
+        pattern = policy.get("pattern", "")
+        flags = 0 if policy.get("case_sensitive", False) else re.IGNORECASE
+        # When output is valid JSON, run the pattern against string values only
+        # (not against field names) to avoid spurious matches on schema keys.
+        clean = _strip_fences(text)
+        try:
+            parsed = json.loads(clean)
+            check_text = " ".join(_extract_string_values(parsed))
+        except (json.JSONDecodeError, TypeError):
+            check_text = clean
+        if re.search(pattern, check_text, flags):
+            return False, f"Forbidden pattern matched: '{pattern}'"
         return True, "OK"
 
     if rule_type == "must_contain":
