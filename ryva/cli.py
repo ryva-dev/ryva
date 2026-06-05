@@ -1165,7 +1165,10 @@ def cloud_sync_cmd(
 
     console.print(f"[bold]Syncing to Ryva Cloud ({env})...[/bold]")
 
-    # Sync traces
+    # Sync traces — map the local trace format onto the backend CreateTraceRequest
+    # schema. The local format stores cost as `cost_usd` and tokens nested under
+    # `tokens`; the backend expects flat `estimated_cost` / `input_tokens` /
+    # `output_tokens`. Missing values are sent as null rather than faked.
     traces_dir = r / "traces"
     if traces_dir.exists():
         trace_files = list(traces_dir.glob("*.json"))
@@ -1173,53 +1176,123 @@ def cloud_sync_cmd(
         for tf in trace_files:
             try:
                 trace = json.loads(tf.read_text())
-                trace["project_id"] = project_id
+                tokens = trace.get("tokens") or {}
+                payload = {
+                    "run_id": trace.get("run_id"),
+                    "project_id": project_id,
+                    "agent": trace.get("agent"),
+                    "model": trace.get("model"),
+                    "provider": trace.get("provider"),
+                    "status": trace.get("status"),
+                    "duration_ms": trace.get("duration_ms"),
+                    "steps": trace.get("steps", []),
+                    "input_tokens": tokens.get("input"),
+                    "output_tokens": tokens.get("output"),
+                    "estimated_cost": trace.get("cost_usd"),
+                    "started_at": trace.get("started_at"),
+                    "finished_at": trace.get("finished_at"),
+                }
                 resp = httpx.post(
                     f"{CLOUD_URL}/api/v1/traces/",
-                    json=trace,
+                    json=payload,
                     headers=headers,
-                    timeout=10
+                    timeout=10,
                 )
                 if resp.status_code in (200, 201):
                     synced += 1
-            except Exception:
-                pass
+                else:
+                    console.print(
+                        f"  [yellow]⚠ Trace {payload['run_id']}: "
+                        f"{resp.status_code} {resp.text[:120]}[/yellow]"
+                    )
+            except Exception as e:
+                console.print(f"  [yellow]⚠ Trace {tf.name}: {e}[/yellow]")
         console.print(f"  [green]✓ Synced {synced}/{len(trace_files)} traces[/green]")
 
-    # Sync governance report
+    # Sync governance / compliance report — map onto CreateComplianceReportRequest.
+    # project_name is required by the backend; the local report stores it under
+    # `project`. The full report is preserved under `raw_report`.
     gov_report = r / "target" / "governance_report.json"
     if gov_report.exists():
         try:
             report = json.loads(gov_report.read_text())
-            report["project_id"] = project_id
+            summary = report.get("summary") or {}
+            payload = {
+                "project_id": project_id,
+                "project_name": report.get("project") or r.name,
+                "ryva_version": report.get("ryva_version"),
+                "risk_summary": report.get("risk_assessment"),
+                "ai_bill_of_materials": report.get("bill_of_materials") or [],
+                "metrics": summary,
+                "prompt_version_registry": report.get("prompt_version_registry") or {},
+                "raw_report": report,
+            }
             resp = httpx.post(
                 f"{CLOUD_URL}/api/v1/compliance/report",
-                json=report,
+                json=payload,
                 headers=headers,
-                timeout=10
+                timeout=10,
             )
             if resp.status_code in (200, 201):
                 console.print("  [green]✓ Synced governance report[/green]")
+            else:
+                console.print(
+                    f"  [yellow]⚠ Governance report: "
+                    f"{resp.status_code} {resp.text[:160]}[/yellow]"
+                )
         except Exception as e:
             console.print(f"  [yellow]⚠ Could not sync governance report: {e}[/yellow]")
 
-    # Sync model cards
+    # Sync model cards — flatten the nested local card onto CreateModelCardRequest.
+    # The full card is preserved under `raw_card`; every flat column is mapped from
+    # its nested source, sending null when a value is absent (never a fake default).
     model_cards_dir = r / "target" / "model_cards"
     if model_cards_dir.exists():
         card_files = list(model_cards_dir.glob("*.json"))
+        synced = 0
         for cf in card_files:
             try:
                 card = json.loads(cf.read_text())
-                card["project_id"] = project_id
-                httpx.post(
-                    f"{CLOUD_URL}/api/v1/agents/modelcard",
-                    json=card,
+                system = card.get("system") or {}
+                model = card.get("model") or {}
+                perf = card.get("performance") or {}
+                risk = card.get("risk") or {}
+                compliance = card.get("compliance") or {}
+                gdpr = compliance.get("gdpr") or {}
+                payload = {
+                    "project_id": project_id,
+                    "agent_name": system.get("name"),
+                    "risk_level": risk.get("risk_level"),
+                    "risk_justification": risk.get("risk_justification"),
+                    "model_id": model.get("model_id"),
+                    "provider": model.get("provider"),
+                    "intended_use": system.get("intended_use"),
+                    "known_limitations": risk.get("known_limitations"),
+                    "eu_ai_act_status": compliance.get("eu_ai_act"),
+                    "colorado_ai_act_status": compliance.get("colorado_ai_act"),
+                    "pii_masking_enabled": gdpr.get("pii_masking_enabled"),
+                    "test_coverage": perf.get("test_coverage"),
+                    "adversarial_tested": perf.get("adversarial_tested"),
+                    "hallucination_tested": perf.get("hallucination_tested"),
+                    "total_production_runs": perf.get("total_production_runs"),
+                    "raw_card": card,
+                }
+                resp = httpx.post(
+                    f"{CLOUD_URL}/api/v1/compliance/model-cards",
+                    json=payload,
                     headers=headers,
-                    timeout=10
+                    timeout=10,
                 )
-            except Exception:
-                pass
-        console.print(f"  [green]✓ Synced {len(card_files)} model card(s)[/green]")
+                if resp.status_code in (200, 201):
+                    synced += 1
+                else:
+                    console.print(
+                        f"  [yellow]⚠ Model card {payload.get('agent_name')}: "
+                        f"{resp.status_code} {resp.text[:160]}[/yellow]"
+                    )
+            except Exception as e:
+                console.print(f"  [yellow]⚠ Model card {cf.name}: {e}[/yellow]")
+        console.print(f"  [green]✓ Synced {synced}/{len(card_files)} model card(s)[/green]")
 
     console.print("\n[bold green]✓ Sync complete[/bold green]")
     console.print("  View at: https://ryva-dashboard.vercel.app/dashboard")
@@ -1242,3 +1315,20 @@ def cloud_status_cmd(
         console.print(f"  Project ID: {project_id}")
     else:
         console.print("[yellow]Not connected. Run: ryva cloud login[/yellow]")
+
+
+@app.command("modelcard")
+def modelcard_cmd(
+    agent: str = typer.Argument(..., help="Agent name to generate model card for"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Generate a model card for an agent."""
+    from ryva.model_card import generate_model_card, save_model_card, print_model_card_summary
+    from ryva.utils import find_project_root
+
+    r = root or find_project_root()
+    console.print(f"[bold]Generating model card for {agent}...[/bold]")
+    card = generate_model_card(r, agent)
+    path = save_model_card(r, agent, card)
+    print_model_card_summary(card)
+    console.print(f"[green]✓ Model card saved: {path}[/green]")
