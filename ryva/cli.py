@@ -836,11 +836,23 @@ def approvals_request(
         "notes": notes,
         "prompt_hash": manifest.get("agents", {}).get(agent, {}).get("prompt_hash"),
         "approved_model": manifest.get("agents", {}).get(agent, {}).get("model"),
+        "approved_provider": manifest.get("agents", {}).get(agent, {}).get("provider"),
+        "reviewed_version_id": None,
         "manifest_version": manifest.get("ryva_version"),
         "created_at": datetime.now(UTC).isoformat(),
         "approved_at": None,
         "approved_by": None,
     }
+    if approval.get("prompt_hash") or approval.get("approved_model") or approval.get("approved_provider"):
+        import hashlib
+        raw = "|".join([
+            "",
+            agent,
+            approval.get("prompt_hash") or "",
+            approval.get("approved_model") or "",
+            approval.get("approved_provider") or "",
+        ])
+        approval["reviewed_version_id"] = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
     (approvals_dir / f"{approval_id}.json").write_text(json.dumps(approval, indent=2))
 
     console.print(f"[bold green]✓ Approval request created: {approval_id}[/bold green]")
@@ -1359,6 +1371,7 @@ def cloud_sync_cmd(
     if manifest_path.exists():
         try:
             manifest = json.loads(manifest_path.read_text())
+            manifest["compiled_at"] = datetime.now(timezone.utc).isoformat()
             resp = httpx.post(
                 f"{CLOUD_URL}/api/v1/governance/manifest",
                 json={"project_id": project_id, "manifest": manifest},
