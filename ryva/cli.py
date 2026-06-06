@@ -835,6 +835,7 @@ def approvals_request(
         "reviewer_email": reviewer_email,
         "notes": notes,
         "prompt_hash": manifest.get("agents", {}).get(agent, {}).get("prompt_hash"),
+        "approved_model": manifest.get("agents", {}).get(agent, {}).get("model"),
         "manifest_version": manifest.get("ryva_version"),
         "created_at": datetime.now(UTC).isoformat(),
         "approved_at": None,
