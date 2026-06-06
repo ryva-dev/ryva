@@ -1217,10 +1217,24 @@ def cloud_sync_cmd(
         try:
             report = json.loads(gov_report.read_text())
             summary = report.get("summary") or {}
+            overall_score = None
+            eu_score = summary.get("eu_ai_act_compliance_score")
+            if isinstance(eu_score, str) and "/" in eu_score:
+                try:
+                    passed, total = eu_score.split("/", 1)
+                    total_value = float(total)
+                    if total_value > 0:
+                        overall_score = round((float(passed) / total_value) * 100, 2)
+                except (TypeError, ValueError):
+                    overall_score = None
             payload = {
                 "project_id": project_id,
                 "project_name": report.get("project") or r.name,
                 "ryva_version": report.get("ryva_version"),
+                "overall_score": overall_score,
+                "overall_status": None,
+                "eu_ai_act": report.get("eu_ai_act") or {},
+                "colorado_ai_act": report.get("colorado_ai_act") or {},
                 "risk_summary": report.get("risk_assessment"),
                 "ai_bill_of_materials": report.get("bill_of_materials") or [],
                 "metrics": summary,
