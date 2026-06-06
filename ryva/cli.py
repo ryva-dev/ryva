@@ -1354,6 +1354,92 @@ def cloud_sync_cmd(
                 console.print(f"  [yellow]⚠ Model card {cf.name}: {e}[/yellow]")
         console.print(f"  [green]✓ Synced {synced}/{len(card_files)} model card(s)[/green]")
 
+    manifest_path = r / "target" / "manifest.json"
+    if manifest_path.exists():
+        try:
+            manifest = json.loads(manifest_path.read_text())
+            resp = httpx.post(
+                f"{CLOUD_URL}/api/v1/governance/manifest",
+                json={"project_id": project_id, "manifest": manifest},
+                headers=headers,
+                timeout=10,
+            )
+            if resp.status_code in (200, 201):
+                console.print("  [green]✓ Synced manifest snapshot[/green]")
+            else:
+                console.print(
+                    f"  [yellow]⚠ Manifest: "
+                    f"{resp.status_code} {resp.text[:160]}[/yellow]"
+                )
+        except Exception as e:
+            console.print(f"  [yellow]⚠ Could not sync manifest: {e}[/yellow]")
+
+    approvals_dir = r / "target" / "approvals"
+    if approvals_dir.exists():
+        try:
+            approvals = []
+            for af in sorted(approvals_dir.glob("*.json")):
+                approval = json.loads(af.read_text())
+                approvals.append(approval)
+            if approvals:
+                resp = httpx.post(
+                    f"{CLOUD_URL}/api/v1/governance/approvals/bulk",
+                    json={"project_id": project_id, "approvals": approvals},
+                    headers=headers,
+                    timeout=10,
+                )
+                if resp.status_code in (200, 201):
+                    console.print(f"  [green]✓ Synced {len(approvals)} approval record(s)[/green]")
+                else:
+                    console.print(
+                        f"  [yellow]⚠ Approvals: "
+                        f"{resp.status_code} {resp.text[:160]}[/yellow]"
+                    )
+        except Exception as e:
+            console.print(f"  [yellow]⚠ Could not sync approvals: {e}[/yellow]")
+
+    change_history = r / "target" / "change_history.json"
+    if change_history.exists():
+        try:
+            changes = json.loads(change_history.read_text())
+            if changes:
+                resp = httpx.post(
+                    f"{CLOUD_URL}/api/v1/governance/changes/bulk",
+                    json={"project_id": project_id, "changes": changes},
+                    headers=headers,
+                    timeout=10,
+                )
+                if resp.status_code in (200, 201):
+                    console.print(f"  [green]✓ Synced {len(changes)} change event(s)[/green]")
+                else:
+                    console.print(
+                        f"  [yellow]⚠ Change history: "
+                        f"{resp.status_code} {resp.text[:160]}[/yellow]"
+                    )
+        except Exception as e:
+            console.print(f"  [yellow]⚠ Could not sync change history: {e}[/yellow]")
+
+    exceptions_file = r / "target" / "exceptions.json"
+    if exceptions_file.exists():
+        try:
+            exceptions = json.loads(exceptions_file.read_text())
+            if exceptions:
+                resp = httpx.post(
+                    f"{CLOUD_URL}/api/v1/release/exceptions/bulk",
+                    json={"project_id": project_id, "exceptions": exceptions},
+                    headers=headers,
+                    timeout=10,
+                )
+                if resp.status_code in (200, 201):
+                    console.print(f"  [green]✓ Synced {len(exceptions)} exception record(s)[/green]")
+                else:
+                    console.print(
+                        f"  [yellow]⚠ Exceptions: "
+                        f"{resp.status_code} {resp.text[:160]}[/yellow]"
+                    )
+        except Exception as e:
+            console.print(f"  [yellow]⚠ Could not sync exceptions: {e}[/yellow]")
+
     console.print("\n[bold green]✓ Sync complete[/bold green]")
     console.print("  View at: https://ryva-dashboard.vercel.app/dashboard")
 
