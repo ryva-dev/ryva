@@ -1209,6 +1209,52 @@ def cloud_sync_cmd(
                 console.print(f"  [yellow]⚠ Trace {tf.name}: {e}[/yellow]")
         console.print(f"  [green]✓ Synced {synced}/{len(trace_files)} traces[/green]")
 
+    # Sync lineage — preserve prompt/input/output hashes and signed chain data so
+    # Cloud can build version history and audit trails from real execution evidence.
+    lineage_dir = r / "lineage"
+    if lineage_dir.exists():
+        lineage_files = list(lineage_dir.glob("*.json"))
+        synced = 0
+        for lf in lineage_files:
+            try:
+                record = json.loads(lf.read_text())
+                tokens = record.get("tokens") or {}
+                payload = {
+                    "run_id": record.get("run_id"),
+                    "project_id": project_id,
+                    "agent": record.get("agent"),
+                    "input_hash": record.get("input_hash"),
+                    "prompt_hash": record.get("prompt_hash"),
+                    "output_hash": record.get("output_hash"),
+                    "prompt_template": record.get("prompt_template"),
+                    "input_tokens": tokens.get("input"),
+                    "output_tokens": tokens.get("output"),
+                    "cost_usd": record.get("cost_usd"),
+                    "parent_run_id": record.get("parent_run_id"),
+                    "trace_id": record.get("trace_id"),
+                    "retrieval_chunks": record.get("retrieval_chunks", []),
+                    "tool_calls": record.get("tool_calls", []),
+                    "signature": record.get("signature"),
+                    "signature_verified": record.get("signature_verified", False),
+                    "chain_depth": record.get("chain_depth", 1),
+                }
+                resp = httpx.post(
+                    f"{CLOUD_URL}/api/v1/lineage/",
+                    json=payload,
+                    headers=headers,
+                    timeout=10,
+                )
+                if resp.status_code in (200, 201):
+                    synced += 1
+                else:
+                    console.print(
+                        f"  [yellow]⚠ Lineage {payload['run_id']}: "
+                        f"{resp.status_code} {resp.text[:120]}[/yellow]"
+                    )
+            except Exception as e:
+                console.print(f"  [yellow]⚠ Lineage {lf.name}: {e}[/yellow]")
+        console.print(f"  [green]✓ Synced {synced}/{len(lineage_files)} lineage record(s)[/green]")
+
     # Sync governance / compliance report — map onto CreateComplianceReportRequest.
     # project_name is required by the backend; the local report stores it under
     # `project`. The full report is preserved under `raw_report`.
