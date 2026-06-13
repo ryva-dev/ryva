@@ -1003,6 +1003,7 @@ def exceptions_create(
     root: Path | None = typer.Option(None, "--root", help="Project root"),
 ):
     """Create a formal policy exception with expiry date."""
+    import hashlib
     import uuid
     from datetime import UTC, datetime
 
@@ -1014,6 +1015,13 @@ def exceptions_create(
     r = _resolve_root(root)
     target_dir = r / "target"
     target_dir.mkdir(exist_ok=True)
+    manifest: dict = {}
+    manifest_path = r / "target" / "manifest.json"
+    if manifest_path.exists():
+        try:
+            manifest = json.loads(manifest_path.read_text())
+        except Exception:
+            pass
 
     exceptions_file = target_dir / "exceptions.json"
     existing: list = []
@@ -1031,10 +1039,22 @@ def exceptions_create(
         "reason": reason,
         "approved_by": approved_by,
         "risk_level": risk_level,
+        "prompt_hash": manifest.get("agents", {}).get(agent, {}).get("prompt_hash"),
+        "approved_model": manifest.get("agents", {}).get(agent, {}).get("model"),
+        "approved_provider": manifest.get("agents", {}).get(agent, {}).get("provider"),
+        "reviewed_version_id": None,
         "expires_at": f"{expires}T23:59:59Z",
         "created_at": datetime.now(UTC).isoformat(),
         "status": "active",
     }
+    if exception.get("prompt_hash") or exception.get("approved_model") or exception.get("approved_provider"):
+        raw = "|".join([
+            agent,
+            exception.get("prompt_hash") or "",
+            exception.get("approved_model") or "",
+            exception.get("approved_provider") or "",
+        ])
+        exception["reviewed_version_id"] = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
     existing.append(exception)
     exceptions_file.write_text(json.dumps(existing, indent=2))
 
