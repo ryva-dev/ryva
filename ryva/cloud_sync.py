@@ -65,57 +65,121 @@ def cloud_login(email: str, password: str) -> dict:
     return res.json()
 
 
-def cloud_sync(root: Path, token: str, project_id: str) -> dict:
-    """Sync all local data to Ryva Cloud (traces, lineage, reports, model cards)."""
-    payload = {
-        'project_id': project_id,
-        'project_name': root.name,
-        'traces': [],
-        'lineage': [],
-        'compliance_report': None,
-        'model_cards': [],
-        'benchmark_results': [],
+def _load_trace_payload(path: Path, project_id: str) -> dict | None:
+    trace = _load_json(path)
+    if not isinstance(trace, dict):
+        return None
+    tokens = trace.get("tokens") or {}
+    return {
+        "run_id": trace.get("run_id"),
+        "project_id": project_id,
+        "agent": trace.get("agent"),
+        "model": trace.get("model"),
+        "provider": trace.get("provider"),
+        "status": trace.get("status"),
+        "duration_ms": trace.get("duration_ms"),
+        "steps": trace.get("steps", []),
+        "input_tokens": tokens.get("input"),
+        "output_tokens": tokens.get("output"),
+        "estimated_cost": trace.get("cost_usd"),
+        "started_at": trace.get("started_at"),
+        "finished_at": trace.get("finished_at"),
     }
 
-    traces_dir = root / 'traces'
-    if traces_dir.exists():
-        for f in sorted(traces_dir.glob('*.json')):
-            try:
-                payload['traces'].append(json.loads(f.read_text()))
-            except Exception:
-                pass
 
-    lineage_dir = root / 'lineage'
-    if lineage_dir.exists():
-        for f in sorted(lineage_dir.glob('*.json')):
-            try:
-                payload['lineage'].append(json.loads(f.read_text()))
-            except Exception:
-                pass
+def _load_lineage_payload(path: Path, project_id: str) -> dict | None:
+    record = _load_json(path)
+    if not isinstance(record, dict):
+        return None
+    tokens = record.get("tokens") or {}
+    return {
+        "run_id": record.get("run_id"),
+        "project_id": project_id,
+        "agent": record.get("agent"),
+        "input_hash": record.get("input_hash"),
+        "prompt_hash": record.get("prompt_hash"),
+        "output_hash": record.get("output_hash"),
+        "prompt_template": record.get("prompt_template"),
+        "input_tokens": tokens.get("input"),
+        "output_tokens": tokens.get("output"),
+        "cost_usd": record.get("cost_usd"),
+        "parent_run_id": record.get("parent_run_id"),
+        "trace_id": record.get("trace_id"),
+        "retrieval_chunks": record.get("retrieval_chunks", []),
+        "tool_calls": record.get("tool_calls", []),
+        "signature": record.get("signature"),
+        "signature_verified": record.get("signature_verified", False),
+        "chain_depth": record.get("chain_depth", 1),
+    }
 
-    gov_report = root / 'target' / 'governance_report.json'
-    if gov_report.exists():
+
+def _derive_overall_score(report: dict) -> float | None:
+    summary = report.get("summary") or {}
+    eu_score = summary.get("eu_ai_act_compliance_score")
+    if isinstance(eu_score, str) and "/" in eu_score:
         try:
-            payload['compliance_report'] = json.loads(gov_report.read_text())
-        except Exception:
-            pass
+            passed, total = eu_score.split("/", 1)
+            total_value = float(total)
+            if total_value > 0:
+                return round((float(passed) / total_value) * 100, 2)
+        except (TypeError, ValueError):
+            return None
+    return None
 
-    cards_dir = root / 'target' / 'model_cards'
-    if cards_dir.exists():
-        for f in cards_dir.glob('*.json'):
-            try:
-                payload['model_cards'].append(json.loads(f.read_text()))
-            except Exception:
-                pass
 
-    res = httpx.post(
-        f'{RYVA_CLOUD_URL}/api/v1/sync/',
-        json=payload,
-        headers={'Authorization': f'Bearer {token}'},
-        timeout=120
-    )
-    res.raise_for_status()
-    return res.json()
+def _load_compliance_payload(path: Path, project_id: str, project_name: str) -> dict | None:
+    report = _load_json(path)
+    if not isinstance(report, dict):
+        return None
+    return {
+        "project_id": project_id,
+        "project_name": report.get("project") or project_name,
+        "ryva_version": report.get("ryva_version"),
+        "overall_score": _derive_overall_score(report),
+        "overall_status": None,
+        "eu_ai_act": report.get("eu_ai_act") or {},
+        "colorado_ai_act": report.get("colorado_ai_act") or {},
+        "risk_summary": report.get("risk_assessment"),
+        "ai_bill_of_materials": report.get("bill_of_materials") or [],
+        "metrics": (report.get("summary") or {}),
+        "prompt_version_registry": report.get("prompt_version_registry") or {},
+        "raw_report": report,
+    }
+
+
+def _load_model_card_payload(path: Path, project_id: str) -> dict | None:
+    card = _load_json(path)
+    if not isinstance(card, dict):
+        return None
+    system = card.get("system") or {}
+    model = card.get("model") or {}
+    perf = card.get("performance") or {}
+    risk = card.get("risk") or {}
+    compliance = card.get("compliance") or {}
+    gdpr = compliance.get("gdpr") or {}
+    return {
+        "project_id": project_id,
+        "agent_name": system.get("name"),
+        "risk_level": risk.get("risk_level"),
+        "risk_justification": risk.get("risk_justification"),
+        "model_id": model.get("model_id"),
+        "provider": model.get("provider"),
+        "intended_use": system.get("intended_use"),
+        "known_limitations": risk.get("known_limitations"),
+        "eu_ai_act_status": compliance.get("eu_ai_act"),
+        "colorado_ai_act_status": compliance.get("colorado_ai_act"),
+        "pii_masking_enabled": gdpr.get("pii_masking_enabled"),
+        "test_coverage": perf.get("test_coverage"),
+        "adversarial_tested": perf.get("adversarial_tested"),
+        "hallucination_tested": perf.get("hallucination_tested"),
+        "total_production_runs": perf.get("total_production_runs"),
+        "raw_card": card,
+    }
+
+
+def cloud_sync(root: Path, token: str, project_id: str) -> dict:
+    """Sync all local data to Ryva Cloud using the canonical backend routes."""
+    return sync_all(root, project_id, token, RYVA_CLOUD_URL)
 
 
 # ── Governance-object sync helpers (API-key based) ────────────────────────────
@@ -145,14 +209,46 @@ def sync_all(root: Path, project_id: str, api_key: str, cloud_url: str) -> dict:
     """
     results: dict = {}
 
+    traces_dir = root / "traces"
+    if traces_dir.exists():
+        trace_files = sorted(traces_dir.glob("*.json"))
+        synced = 0
+        for trace_file in trace_files:
+            payload = _load_trace_payload(trace_file, project_id)
+            if not payload:
+                continue
+            try:
+                _post(f"{cloud_url}/api/v1/traces/", payload, api_key)
+                synced += 1
+            except Exception as exc:
+                console.print(f"[yellow]  ⚠ Could not sync trace {trace_file.name}: {exc}[/yellow]")
+        results["traces"] = {"synced": synced, "total": len(trace_files)}
+        console.print(f"[dim]  ✓ Synced {synced}/{len(trace_files)} trace(s)[/dim]")
+
+    lineage_dir = root / "lineage"
+    if lineage_dir.exists():
+        lineage_files = sorted(lineage_dir.glob("*.json"))
+        synced = 0
+        for lineage_file in lineage_files:
+            payload = _load_lineage_payload(lineage_file, project_id)
+            if not payload:
+                continue
+            try:
+                _post(f"{cloud_url}/api/v1/lineage/", payload, api_key)
+                synced += 1
+            except Exception as exc:
+                console.print(f"[yellow]  ⚠ Could not sync lineage {lineage_file.name}: {exc}[/yellow]")
+        results["lineage"] = {"synced": synced, "total": len(lineage_files)}
+        console.print(f"[dim]  ✓ Synced {synced}/{len(lineage_files)} lineage record(s)[/dim]")
+
     report = root / "target" / "governance_report.json"
     if report.exists():
-        data = _load_json(report)
-        if data:
+        payload = _load_compliance_payload(report, project_id, root.name)
+        if payload:
             try:
                 results["compliance"] = _post(
-                    f"{cloud_url}/api/v1/governance/compliance",
-                    {"project_id": project_id, "report": data},
+                    f"{cloud_url}/api/v1/compliance/report",
+                    payload,
                     api_key,
                 )
                 console.print("[dim]  ✓ Synced compliance report[/dim]")
@@ -161,18 +257,20 @@ def sync_all(root: Path, project_id: str, api_key: str, cloud_url: str) -> dict:
 
     cards_dir = root / "target" / "model_cards"
     if cards_dir.exists():
-        cards = [_load_json(f) for f in sorted(cards_dir.glob("*.json"))]
+        cards = [_load_model_card_payload(f, project_id) for f in sorted(cards_dir.glob("*.json"))]
         cards = [c for c in cards if c]
         if cards:
-            try:
-                results["model_cards"] = _post(
-                    f"{cloud_url}/api/v1/governance/model-cards/bulk",
-                    {"project_id": project_id, "cards": cards},
-                    api_key,
-                )
-                console.print(f"[dim]  ✓ Synced {len(cards)} model card(s)[/dim]")
-            except Exception as exc:
-                console.print(f"[yellow]  ⚠ Could not sync model cards: {exc}[/yellow]")
+            synced = 0
+            for card in cards:
+                try:
+                    _post(f"{cloud_url}/api/v1/compliance/model-cards", card, api_key)
+                    synced += 1
+                except Exception as exc:
+                    console.print(
+                        f"[yellow]  ⚠ Could not sync model card {card.get('agent_name')}: {exc}[/yellow]"
+                    )
+            results["model_cards"] = {"synced": synced, "total": len(cards)}
+            console.print(f"[dim]  ✓ Synced {synced}/{len(cards)} model card(s)[/dim]")
 
     approvals_dir = root / "target" / "approvals"
     if approvals_dir.exists():
@@ -206,7 +304,7 @@ def sync_all(root: Path, project_id: str, api_key: str, cloud_url: str) -> dict:
     manifest_file = root / "target" / "manifest.json"
     if manifest_file.exists():
         manifest = _load_json(manifest_file)
-        if manifest:
+        if isinstance(manifest, dict):
             try:
                 results["manifest"] = _post(
                     f"{cloud_url}/api/v1/governance/manifest",
@@ -216,5 +314,19 @@ def sync_all(root: Path, project_id: str, api_key: str, cloud_url: str) -> dict:
                 console.print("[dim]  ✓ Synced project manifest[/dim]")
             except Exception as exc:
                 console.print(f"[yellow]  ⚠ Could not sync manifest: {exc}[/yellow]")
+
+    exceptions_file = root / "target" / "exceptions.json"
+    if exceptions_file.exists():
+        exceptions = _load_json(exceptions_file)
+        if exceptions:
+            try:
+                results["exceptions"] = _post(
+                    f"{cloud_url}/api/v1/release/exceptions/bulk",
+                    {"project_id": project_id, "exceptions": exceptions},
+                    api_key,
+                )
+                console.print(f"[dim]  ✓ Synced {len(exceptions)} exception record(s)[/dim]")
+            except Exception as exc:
+                console.print(f"[yellow]  ⚠ Could not sync exceptions: {exc}[/yellow]")
 
     return results
