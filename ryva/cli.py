@@ -1618,6 +1618,107 @@ ryva cloud external refresh \\
     (out_dir / "README.md").write_text(readme)
 
 
+def _github_actions_refresh_workflow(
+    *,
+    project_id: str,
+    system_id: str,
+    source_type: str,
+) -> str:
+    return f"""name: Ryva External System Sync
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  refresh-ryva-system:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ryva
+        run: pip install ryva
+
+      - name: Preview metadata refresh
+        env:
+          RYVA_PROJECT_ID: ${{{{ secrets.RYVA_PROJECT_ID }}}}
+          RYVA_INGESTION_TOKEN: ${{{{ secrets.RYVA_INGESTION_TOKEN }}}}
+          RYVA_CLOUD_URL: ${{{{ secrets.RYVA_CLOUD_URL }}}}
+        run: |
+          ryva cloud external refresh-preview \\
+            --system-id {system_id} \\
+            --project-id {project_id} \\
+            --source-type {source_type} \\
+            refresh.descriptor.json
+
+      - name: Apply metadata refresh
+        if: github.ref == 'refs/heads/main'
+        env:
+          RYVA_PROJECT_ID: ${{{{ secrets.RYVA_PROJECT_ID }}}}
+          RYVA_INGESTION_TOKEN: ${{{{ secrets.RYVA_INGESTION_TOKEN }}}}
+          RYVA_CLOUD_URL: ${{{{ secrets.RYVA_CLOUD_URL }}}}
+        run: |
+          ryva cloud external refresh \\
+            --system-id {system_id} \\
+            --project-id {project_id} \\
+            --source-type {source_type} \\
+            refresh.descriptor.json
+"""
+
+
+def _write_source_specific_connector_files(
+    out_dir: Path,
+    *,
+    project_id: str,
+    system_id: str,
+    source_type: str,
+    config: dict,
+) -> None:
+    if source_type != "github_repo":
+        return
+    source_sync_spec = config.get("source_sync_spec") or {}
+    repo_dir = out_dir / "github"
+    repo_dir.mkdir(parents=True, exist_ok=True)
+    (repo_dir / "refresh.descriptor.json").write_text(
+        json.dumps(source_sync_spec.get("sample_refresh_descriptor") or {}, indent=2)
+    )
+    (repo_dir / "ryva-external-sync.yml").write_text(
+        _github_actions_refresh_workflow(
+            project_id=project_id,
+            system_id=system_id,
+            source_type=source_type,
+        )
+    )
+    (repo_dir / "README.md").write_text(
+        """# GitHub repo sync starter
+
+This folder contains a starter GitHub Actions workflow for a repo-managed AI system.
+
+Files:
+
+- `refresh.descriptor.json`
+- `ryva-external-sync.yml`
+
+Recommended repo secrets:
+
+- `RYVA_PROJECT_ID`
+- `RYVA_INGESTION_TOKEN`
+- `RYVA_CLOUD_URL`
+
+Copy `ryva-external-sync.yml` into `.github/workflows/` in the source repository and
+update `refresh.descriptor.json` to reflect the repo's actual runtime and governance metadata.
+"""
+    )
+
+
 @cloud_external_app.command("scaffold")
 def cloud_external_scaffold_cmd(
     system_id: str = typer.Option(..., "--system-id", help="Ryva system ID"),
@@ -1654,6 +1755,13 @@ def cloud_external_scaffold_cmd(
         out_dir,
         system_id=system_id,
         project_id=resolved_project_id,
+        source_type=source_sync_spec.get("source_type") or "other",
+        config=config,
+    )
+    _write_source_specific_connector_files(
+        out_dir,
+        project_id=resolved_project_id,
+        system_id=system_id,
         source_type=source_sync_spec.get("source_type") or "other",
         config=config,
     )
