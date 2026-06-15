@@ -7,6 +7,8 @@ other CLI commands continue to work offline.
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import os
 from pathlib import Path
@@ -200,6 +202,137 @@ def _post(url: str, payload: dict, api_key: str) -> dict:
     )
     resp.raise_for_status()
     return resp.json()
+
+
+def _external_signature_message(kind: str, project_id: str, system_id: str, payload: dict) -> str:
+    body = dict(payload)
+    body.pop("signature", None)
+    body.pop("signature_verified", None)
+    return json.dumps(
+        {
+            "kind": kind,
+            "project_id": project_id,
+            "system_id": system_id,
+            "payload": body,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def _sign_external_payload(kind: str, project_id: str, system_id: str, payload: dict, ingestion_token: str) -> dict:
+    signed = dict(payload)
+    message = _external_signature_message(kind, project_id, system_id, signed)
+    signed["signature"] = hmac.new(
+        ingestion_token.encode("utf-8"),
+        message.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    signed["signature_verified"] = False
+    return signed
+
+
+def _post_external(url: str, payload: dict, ingestion_token: str) -> dict:
+    resp = httpx.post(
+        url,
+        json=payload,
+        headers={"X-Ryva-Ingestion-Token": ingestion_token},
+        timeout=30.0,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
+def sync_external_trace(
+    *,
+    project_id: str,
+    system_id: str,
+    ingestion_token: str,
+    payload: dict,
+    cloud_url: str,
+) -> dict:
+    signed = _sign_external_payload(
+        "external_trace",
+        project_id,
+        system_id,
+        payload,
+        ingestion_token,
+    )
+    return _post_external(
+        f"{cloud_url}/api/v1/systems/{system_id}/external-traces?project_id={project_id}",
+        signed,
+        ingestion_token,
+    )
+
+
+def sync_external_lineage(
+    *,
+    project_id: str,
+    system_id: str,
+    ingestion_token: str,
+    payload: dict,
+    cloud_url: str,
+) -> dict:
+    signed = _sign_external_payload(
+        "external_lineage",
+        project_id,
+        system_id,
+        payload,
+        ingestion_token,
+    )
+    return _post_external(
+        f"{cloud_url}/api/v1/systems/{system_id}/external-lineage?project_id={project_id}",
+        signed,
+        ingestion_token,
+    )
+
+
+def preview_external_refresh(
+    *,
+    project_id: str,
+    system_id: str | None,
+    external_system_id: str | None,
+    source_type: str,
+    descriptor: dict,
+    ingestion_token: str,
+    cloud_url: str,
+) -> dict:
+    payload = {
+        "project_id": project_id,
+        "system_id": system_id,
+        "external_system_id": external_system_id,
+        "source_type": source_type,
+        "descriptor": descriptor,
+    }
+    return _post_external(
+        f"{cloud_url}/api/v1/systems/source-sync/refresh/preview",
+        payload,
+        ingestion_token,
+    )
+
+
+def refresh_external_metadata(
+    *,
+    project_id: str,
+    system_id: str | None,
+    external_system_id: str | None,
+    source_type: str,
+    descriptor: dict,
+    ingestion_token: str,
+    cloud_url: str,
+) -> dict:
+    payload = {
+        "project_id": project_id,
+        "system_id": system_id,
+        "external_system_id": external_system_id,
+        "source_type": source_type,
+        "descriptor": descriptor,
+    }
+    return _post_external(
+        f"{cloud_url}/api/v1/systems/source-sync/refresh",
+        payload,
+        ingestion_token,
+    )
 
 
 def sync_all(root: Path, project_id: str, api_key: str, cloud_url: str) -> dict:

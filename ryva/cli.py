@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import typer
@@ -1112,14 +1113,12 @@ def exceptions_list(
         console.print("[dim]No exceptions found.[/dim]")
 
 
-if __name__ == "__main__":
-    app()
-
-
 # ── Cloud commands ────────────────────────────────────────────────────────────
 
 cloud_app = typer.Typer(help="Connect and sync to Ryva Cloud.")
 app.add_typer(cloud_app, name="cloud")
+cloud_external_app = typer.Typer(help="Scriptable external-system connector helpers.")
+cloud_app.add_typer(cloud_external_app, name="external")
 
 
 @cloud_app.command("login")
@@ -1497,6 +1496,169 @@ def cloud_status_cmd(
         console.print("[yellow]Not connected. Run: ryva cloud login[/yellow]")
 
 
+def _resolve_cloud_project_id(root: Path | None, project_id: str | None) -> str:
+    if project_id:
+        return project_id
+    env_project = os.environ.get("RYVA_PROJECT_ID")
+    if env_project:
+        return env_project
+    if root is not None:
+        from ryva.cloud_sync import get_project_id
+
+        stored = get_project_id(root)
+        if stored:
+            return stored
+    console.print("[red]Project ID is required. Pass --project-id or set RYVA_PROJECT_ID.[/red]")
+    raise typer.Exit(1)
+
+
+def _resolve_ingestion_token(ingestion_token: str | None) -> str:
+    token = ingestion_token or os.environ.get("RYVA_INGESTION_TOKEN")
+    if token:
+        return token
+    console.print("[red]Ingestion token is required. Pass --ingestion-token or set RYVA_INGESTION_TOKEN.[/red]")
+    raise typer.Exit(1)
+
+
+def _load_json_payload(path: Path) -> dict:
+    try:
+        payload = json.loads(path.read_text())
+    except FileNotFoundError:
+        console.print(f"[red]File not found: {path}[/red]")
+        raise typer.Exit(1)
+    except json.JSONDecodeError as exc:
+        console.print(f"[red]Invalid JSON in {path}: {exc}[/red]")
+        raise typer.Exit(1)
+    if not isinstance(payload, dict):
+        console.print(f"[red]{path} must contain a JSON object.[/red]")
+        raise typer.Exit(1)
+    return payload
+
+
+@cloud_external_app.command("trace")
+def cloud_external_trace_cmd(
+    payload_file: Path = typer.Argument(..., help="Path to external trace JSON payload"),
+    system_id: str = typer.Option(..., "--system-id", help="Ryva system ID"),
+    project_id: str | None = typer.Option(None, "--project-id", help="Ryva project ID"),
+    ingestion_token: str | None = typer.Option(None, "--ingestion-token", help="System ingestion token"),
+    cloud_url: str = typer.Option(None, "--cloud-url", help="Ryva Cloud base URL"),
+    root: Path | None = typer.Option(None, "--root", help="Optional Ryva root for saved project lookup"),
+):
+    """Send signed external runtime trace evidence to Ryva Cloud."""
+    from ryva.cloud_sync import sync_external_trace
+
+    resolved_project_id = _resolve_cloud_project_id(root, project_id)
+    resolved_token = _resolve_ingestion_token(ingestion_token)
+    payload = _load_json_payload(payload_file)
+    target_url = cloud_url or os.environ.get("RYVA_CLOUD_URL", "https://ryva-cloud-production.up.railway.app")
+
+    result = sync_external_trace(
+        project_id=resolved_project_id,
+        system_id=system_id,
+        ingestion_token=resolved_token,
+        payload=payload,
+        cloud_url=target_url,
+    )
+    console.print(f"[green]✓ External trace synced[/green] [dim]{result.get('run_id') or payload.get('run_id') or ''}[/dim]")
+
+
+@cloud_external_app.command("lineage")
+def cloud_external_lineage_cmd(
+    payload_file: Path = typer.Argument(..., help="Path to external lineage JSON payload"),
+    system_id: str = typer.Option(..., "--system-id", help="Ryva system ID"),
+    project_id: str | None = typer.Option(None, "--project-id", help="Ryva project ID"),
+    ingestion_token: str | None = typer.Option(None, "--ingestion-token", help="System ingestion token"),
+    cloud_url: str = typer.Option(None, "--cloud-url", help="Ryva Cloud base URL"),
+    root: Path | None = typer.Option(None, "--root", help="Optional Ryva root for saved project lookup"),
+):
+    """Send signed external lineage/version evidence to Ryva Cloud."""
+    from ryva.cloud_sync import sync_external_lineage
+
+    resolved_project_id = _resolve_cloud_project_id(root, project_id)
+    resolved_token = _resolve_ingestion_token(ingestion_token)
+    payload = _load_json_payload(payload_file)
+    target_url = cloud_url or os.environ.get("RYVA_CLOUD_URL", "https://ryva-cloud-production.up.railway.app")
+
+    result = sync_external_lineage(
+        project_id=resolved_project_id,
+        system_id=system_id,
+        ingestion_token=resolved_token,
+        payload=payload,
+        cloud_url=target_url,
+    )
+    console.print(f"[green]✓ External lineage synced[/green] [dim]{result.get('run_id') or payload.get('run_id') or ''}[/dim]")
+
+
+@cloud_external_app.command("refresh-preview")
+def cloud_external_refresh_preview_cmd(
+    descriptor_file: Path = typer.Argument(..., help="Path to external source descriptor JSON"),
+    source_type: str = typer.Option(..., "--source-type", help="Connector source type, e.g. github_repo or aws_bedrock"),
+    system_id: str | None = typer.Option(None, "--system-id", help="Ryva system ID"),
+    external_system_id: str | None = typer.Option(None, "--external-system-id", help="External source system ID"),
+    project_id: str | None = typer.Option(None, "--project-id", help="Ryva project ID"),
+    ingestion_token: str | None = typer.Option(None, "--ingestion-token", help="System ingestion token"),
+    cloud_url: str = typer.Option(None, "--cloud-url", help="Ryva Cloud base URL"),
+    root: Path | None = typer.Option(None, "--root", help="Optional Ryva root for saved project lookup"),
+):
+    """Preview external metadata refresh against an imported system."""
+    from ryva.cloud_sync import preview_external_refresh
+
+    if not system_id and not external_system_id:
+        console.print("[red]Provide --system-id or --external-system-id.[/red]")
+        raise typer.Exit(1)
+
+    resolved_project_id = _resolve_cloud_project_id(root, project_id)
+    resolved_token = _resolve_ingestion_token(ingestion_token)
+    descriptor = _load_json_payload(descriptor_file)
+    target_url = cloud_url or os.environ.get("RYVA_CLOUD_URL", "https://ryva-cloud-production.up.railway.app")
+
+    result = preview_external_refresh(
+        project_id=resolved_project_id,
+        system_id=system_id,
+        external_system_id=external_system_id,
+        source_type=source_type,
+        descriptor=descriptor,
+        ingestion_token=resolved_token,
+        cloud_url=target_url,
+    )
+    console.print_json(data=result)
+
+
+@cloud_external_app.command("refresh")
+def cloud_external_refresh_cmd(
+    descriptor_file: Path = typer.Argument(..., help="Path to external source descriptor JSON"),
+    source_type: str = typer.Option(..., "--source-type", help="Connector source type, e.g. github_repo or aws_bedrock"),
+    system_id: str | None = typer.Option(None, "--system-id", help="Ryva system ID"),
+    external_system_id: str | None = typer.Option(None, "--external-system-id", help="External source system ID"),
+    project_id: str | None = typer.Option(None, "--project-id", help="Ryva project ID"),
+    ingestion_token: str | None = typer.Option(None, "--ingestion-token", help="System ingestion token"),
+    cloud_url: str = typer.Option(None, "--cloud-url", help="Ryva Cloud base URL"),
+    root: Path | None = typer.Option(None, "--root", help="Optional Ryva root for saved project lookup"),
+):
+    """Apply external metadata refresh to an imported system."""
+    from ryva.cloud_sync import refresh_external_metadata
+
+    if not system_id and not external_system_id:
+        console.print("[red]Provide --system-id or --external-system-id.[/red]")
+        raise typer.Exit(1)
+
+    resolved_project_id = _resolve_cloud_project_id(root, project_id)
+    resolved_token = _resolve_ingestion_token(ingestion_token)
+    descriptor = _load_json_payload(descriptor_file)
+    target_url = cloud_url or os.environ.get("RYVA_CLOUD_URL", "https://ryva-cloud-production.up.railway.app")
+
+    result = refresh_external_metadata(
+        project_id=resolved_project_id,
+        system_id=system_id,
+        external_system_id=external_system_id,
+        source_type=source_type,
+        descriptor=descriptor,
+        ingestion_token=resolved_token,
+        cloud_url=target_url,
+    )
+    console.print_json(data=result)
+
+
 @app.command("modelcard")
 def modelcard_cmd(
     agent: str = typer.Argument(..., help="Agent name to generate model card for"),
@@ -1512,3 +1674,7 @@ def modelcard_cmd(
     path = save_model_card(r, agent, card)
     print_model_card_summary(card)
     console.print(f"[green]✓ Model card saved: {path}[/green]")
+
+
+if __name__ == "__main__":
+    app()
