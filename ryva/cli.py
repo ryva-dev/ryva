@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import typer
@@ -1535,6 +1536,78 @@ def _load_json_payload(path: Path) -> dict:
     return payload
 
 
+def _run_git(repo_root: Path, *args: str) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), *args],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+    value = result.stdout.strip()
+    return value or None
+
+
+def _normalize_github_remote(url: str | None) -> str | None:
+    if not url:
+        return None
+    cleaned = url.strip()
+    if cleaned.startswith("git@github.com:"):
+        cleaned = cleaned.replace("git@github.com:", "https://github.com/", 1)
+    if cleaned.endswith(".git"):
+        cleaned = cleaned[:-4]
+    if cleaned.startswith("https://") and "@github.com/" in cleaned:
+        cleaned = "https://github.com/" + cleaned.split("@github.com/", 1)[1]
+    if cleaned.startswith("http://") and "@github.com/" in cleaned:
+        cleaned = "http://github.com/" + cleaned.split("@github.com/", 1)[1]
+    if cleaned.startswith("https://") or cleaned.startswith("http://"):
+        return cleaned
+    return None
+
+
+def _infer_repo_descriptor(repo_root: Path) -> dict:
+    remote_url = _normalize_github_remote(_run_git(repo_root, "remote", "get-url", "origin"))
+    branch = _run_git(repo_root, "rev-parse", "--abbrev-ref", "HEAD") or "main"
+    commit_sha = _run_git(repo_root, "rev-parse", "HEAD") or ""
+    full_name = ""
+    if remote_url and "github.com/" in remote_url:
+        full_name = remote_url.split("github.com/", 1)[1].strip("/")
+    return {
+        "repo": {
+            "full_name": full_name,
+            "url": remote_url or "",
+            "system_name": repo_root.name,
+            "description": "",
+            "default_branch": branch,
+            "commit_sha": commit_sha,
+            "system_path": "",
+        }
+    }
+
+
+def _merge_repo_refresh_descriptor(base_descriptor: dict, repo_root: Path) -> dict:
+    inferred = _infer_repo_descriptor(repo_root)
+    descriptor = json.loads(json.dumps(base_descriptor))
+    repo = descriptor.setdefault("repo", {})
+    inferred_repo = inferred.get("repo", {})
+    for key, value in inferred_repo.items():
+        if value and not repo.get(key):
+            repo[key] = value
+    if inferred_repo.get("commit_sha"):
+        repo["commit_sha"] = inferred_repo["commit_sha"]
+    if inferred_repo.get("default_branch"):
+        repo["default_branch"] = inferred_repo["default_branch"]
+    if inferred_repo.get("url"):
+        repo["url"] = inferred_repo["url"]
+    if inferred_repo.get("full_name"):
+        repo["full_name"] = inferred_repo["full_name"]
+    if inferred_repo.get("system_name") and not repo.get("system_name"):
+        repo["system_name"] = inferred_repo["system_name"]
+    return descriptor
+
+
 def _write_external_connector_readme(
     out_dir: Path,
     *,
@@ -1623,13 +1696,14 @@ def _github_actions_refresh_workflow(
     project_id: str,
     system_id: str,
     source_type: str,
+    branch: str,
 ) -> str:
     return f"""name: Ryva External System Sync
 
 on:
   push:
     branches:
-      - main
+      - {branch}
   workflow_dispatch:
 
 jobs:
@@ -1681,20 +1755,29 @@ def _write_source_specific_connector_files(
     system_id: str,
     source_type: str,
     config: dict,
+    repo_root: Path | None,
 ) -> None:
     if source_type != "github_repo":
         return
     source_sync_spec = config.get("source_sync_spec") or {}
+    descriptor = source_sync_spec.get("sample_refresh_descriptor") or {}
+    if repo_root is not None:
+        descriptor = _merge_repo_refresh_descriptor(descriptor, repo_root)
+    branch = (
+        ((descriptor.get("repo") or {}).get("default_branch"))
+        or "main"
+    )
     repo_dir = out_dir / "github"
     repo_dir.mkdir(parents=True, exist_ok=True)
     (repo_dir / "refresh.descriptor.json").write_text(
-        json.dumps(source_sync_spec.get("sample_refresh_descriptor") or {}, indent=2)
+        json.dumps(descriptor, indent=2)
     )
     (repo_dir / "ryva-external-sync.yml").write_text(
         _github_actions_refresh_workflow(
             project_id=project_id,
             system_id=system_id,
             source_type=source_type,
+            branch=branch,
         )
     )
     (repo_dir / "README.md").write_text(
@@ -1723,6 +1806,7 @@ update `refresh.descriptor.json` to reflect the repo's actual runtime and govern
 def cloud_external_scaffold_cmd(
     system_id: str = typer.Option(..., "--system-id", help="Ryva system ID"),
     out_dir: Path = typer.Option(Path("external-connector"), "--out", help="Directory to write sample connector files into"),
+    repo_root: Path | None = typer.Option(None, "--repo-root", help="Optional local source repo to inspect for GitHub metadata"),
     project_id: str | None = typer.Option(None, "--project-id", help="Ryva project ID"),
     cloud_url: str = typer.Option(None, "--cloud-url", help="Ryva Cloud base URL"),
     root: Path | None = typer.Option(None, "--root", help="Optional Ryva root for saved login lookup"),
@@ -1764,6 +1848,7 @@ def cloud_external_scaffold_cmd(
         system_id=system_id,
         source_type=source_sync_spec.get("source_type") or "other",
         config=config,
+        repo_root=repo_root,
     )
     console.print(f"[green]✓ External connector scaffold written to {out_dir}[/green]")
 
