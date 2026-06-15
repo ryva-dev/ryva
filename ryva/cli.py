@@ -1705,6 +1705,9 @@ on:
   push:
     branches:
       - {branch}
+  repository_dispatch:
+    types:
+      - ryva-refresh
   schedule:
     - cron: '{cron_schedule}'
   workflow_dispatch:
@@ -1778,6 +1781,59 @@ ryva cloud external refresh \\
 """
 
 
+def _bedrock_lambda_handler(
+    *,
+    project_id: str,
+    system_id: str,
+    source_type: str,
+) -> str:
+    return f"""import json
+import os
+from pathlib import Path
+
+from ryva.cloud_sync import preview_external_refresh, refresh_external_metadata
+
+
+PROJECT_ID = os.environ.get("RYVA_PROJECT_ID", "{project_id}")
+SYSTEM_ID = os.environ.get("RYVA_SYSTEM_ID", "{system_id}")
+SOURCE_TYPE = os.environ.get("RYVA_SOURCE_TYPE", "{source_type}")
+INGESTION_TOKEN = os.environ["RYVA_INGESTION_TOKEN"]
+CLOUD_URL = os.environ.get("RYVA_CLOUD_URL", "https://ryva-cloud-production.up.railway.app")
+DESCRIPTOR_PATH = Path(os.environ.get("RYVA_REFRESH_DESCRIPTOR", "refresh.descriptor.json"))
+
+
+def _load_descriptor() -> dict:
+    return json.loads(DESCRIPTOR_PATH.read_text())
+
+
+def handler(event, context):
+    descriptor = _load_descriptor()
+    preview = preview_external_refresh(
+        project_id=PROJECT_ID,
+        system_id=SYSTEM_ID,
+        external_system_id=None,
+        source_type=SOURCE_TYPE,
+        descriptor=descriptor,
+        ingestion_token=INGESTION_TOKEN,
+        cloud_url=CLOUD_URL,
+    )
+    applied = refresh_external_metadata(
+        project_id=PROJECT_ID,
+        system_id=SYSTEM_ID,
+        external_system_id=None,
+        source_type=SOURCE_TYPE,
+        descriptor=descriptor,
+        ingestion_token=INGESTION_TOKEN,
+        cloud_url=CLOUD_URL,
+    )
+    return {{
+        "preview": preview,
+        "applied": applied,
+        "event": event,
+    }}
+"""
+
+
 def _write_source_specific_connector_files(
     out_dir: Path,
     *,
@@ -1831,6 +1887,12 @@ Recommended repo secrets:
 
 Copy `ryva-external-sync.yml` into `.github/workflows/` in the source repository and
 update `refresh.descriptor.json` to reflect the repo's actual runtime and governance metadata.
+
+The workflow supports three trigger modes:
+
+- push on the tracked branch
+- scheduled refresh via cron
+- `repository_dispatch` with type `ryva-refresh` for event-driven refresh
 """
         )
         if install_into_repo and repo_root is not None:
@@ -1865,15 +1927,23 @@ update `refresh.descriptor.json` to reflect the repo's actual runtime and govern
                 source_type=source_type,
             )
         )
+        (bedrock_dir / "lambda_handler.py").write_text(
+            _bedrock_lambda_handler(
+                project_id=project_id,
+                system_id=system_id,
+                source_type=source_type,
+            )
+        )
         (bedrock_dir / "README.md").write_text(
             """# AWS Bedrock sync starter
 
-This folder contains a starter shell script for refreshing a Bedrock-managed system in Ryva.
+This folder contains starter files for refreshing a Bedrock-managed system in Ryva.
 
 Files:
 
 - `refresh.descriptor.json`
 - `sync-bedrock.sh`
+- `lambda_handler.py`
 
 Required environment:
 
@@ -1890,6 +1960,9 @@ Update `refresh.descriptor.json` from your Bedrock agent metadata, then run:
 chmod +x sync-bedrock.sh
 ./sync-bedrock.sh
 ```
+
+For event-driven refresh, package `lambda_handler.py` with `ryva` and trigger it from
+EventBridge, Lambda, or another AWS event source when the upstream Bedrock configuration changes.
 """
         )
 
