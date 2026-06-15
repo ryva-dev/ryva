@@ -1697,6 +1697,7 @@ def _github_actions_refresh_workflow(
     system_id: str,
     source_type: str,
     branch: str,
+    cron_schedule: str,
 ) -> str:
     return f"""name: Ryva External System Sync
 
@@ -1704,6 +1705,8 @@ on:
   push:
     branches:
       - {branch}
+  schedule:
+    - cron: '{cron_schedule}'
   workflow_dispatch:
 
 jobs:
@@ -1756,6 +1759,8 @@ def _write_source_specific_connector_files(
     source_type: str,
     config: dict,
     repo_root: Path | None,
+    install_into_repo: bool,
+    cron_schedule: str,
 ) -> None:
     if source_type != "github_repo":
         return
@@ -1778,6 +1783,7 @@ def _write_source_specific_connector_files(
             system_id=system_id,
             source_type=source_type,
             branch=branch,
+            cron_schedule=cron_schedule,
         )
     )
     (repo_dir / "README.md").write_text(
@@ -1800,6 +1806,23 @@ Copy `ryva-external-sync.yml` into `.github/workflows/` in the source repository
 update `refresh.descriptor.json` to reflect the repo's actual runtime and governance metadata.
 """
     )
+    if install_into_repo and repo_root is not None:
+        workflow_dir = repo_root / ".github" / "workflows"
+        workflow_dir.mkdir(parents=True, exist_ok=True)
+        ryva_dir = repo_root / ".ryva"
+        ryva_dir.mkdir(parents=True, exist_ok=True)
+        (workflow_dir / "ryva-external-sync.yml").write_text(
+            _github_actions_refresh_workflow(
+                project_id=project_id,
+                system_id=system_id,
+                source_type=source_type,
+                branch=branch,
+                cron_schedule=cron_schedule,
+            )
+        )
+        (ryva_dir / "refresh.descriptor.json").write_text(
+            json.dumps(descriptor, indent=2)
+        )
 
 
 @cloud_external_app.command("scaffold")
@@ -1807,6 +1830,8 @@ def cloud_external_scaffold_cmd(
     system_id: str = typer.Option(..., "--system-id", help="Ryva system ID"),
     out_dir: Path = typer.Option(Path("external-connector"), "--out", help="Directory to write sample connector files into"),
     repo_root: Path | None = typer.Option(None, "--repo-root", help="Optional local source repo to inspect for GitHub metadata"),
+    install_github_workflow: bool = typer.Option(False, "--install-github-workflow", help="Write the generated GitHub workflow and refresh descriptor into --repo-root"),
+    cron_schedule: str = typer.Option("0 */6 * * *", "--cron", help="Cron schedule for repo-managed GitHub refresh workflow"),
     project_id: str | None = typer.Option(None, "--project-id", help="Ryva project ID"),
     cloud_url: str = typer.Option(None, "--cloud-url", help="Ryva Cloud base URL"),
     root: Path | None = typer.Option(None, "--root", help="Optional Ryva root for saved login lookup"),
@@ -1829,6 +1854,13 @@ def cloud_external_scaffold_cmd(
         cloud_url=target_url,
     )
     source_sync_spec = config.get("source_sync_spec") or {}
+    source_type = source_sync_spec.get("source_type") or "other"
+    if install_github_workflow and source_type != "github_repo":
+        console.print("[red]--install-github-workflow is only supported for github_repo systems.[/red]")
+        raise typer.Exit(1)
+    if install_github_workflow and repo_root is None:
+        console.print("[red]--install-github-workflow requires --repo-root.[/red]")
+        raise typer.Exit(1)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "trace.payload.json").write_text(json.dumps(config.get("sample_trace_payload") or {}, indent=2))
     (out_dir / "lineage.payload.json").write_text(json.dumps(config.get("sample_lineage_payload") or {}, indent=2))
@@ -1839,18 +1871,23 @@ def cloud_external_scaffold_cmd(
         out_dir,
         system_id=system_id,
         project_id=resolved_project_id,
-        source_type=source_sync_spec.get("source_type") or "other",
+        source_type=source_type,
         config=config,
     )
     _write_source_specific_connector_files(
         out_dir,
         project_id=resolved_project_id,
         system_id=system_id,
-        source_type=source_sync_spec.get("source_type") or "other",
+        source_type=source_type,
         config=config,
         repo_root=repo_root,
+        install_into_repo=install_github_workflow,
+        cron_schedule=cron_schedule,
     )
     console.print(f"[green]✓ External connector scaffold written to {out_dir}[/green]")
+    if install_github_workflow and repo_root is not None:
+        console.print(f"[green]✓ Installed GitHub workflow into {repo_root / '.github' / 'workflows' / 'ryva-external-sync.yml'}[/green]")
+        console.print(f"[green]✓ Installed refresh descriptor into {repo_root / '.ryva' / 'refresh.descriptor.json'}[/green]")
 
 
 @cloud_external_app.command("trace")
