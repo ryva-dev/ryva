@@ -165,3 +165,9 @@ bash scripts/run_healthcare_demo.sh
 ```
 
 The script always runs the offline-safe artifact commands. If `ANTHROPIC_API_KEY` is present, it also runs the live demo cases and model-dependent tests.
+
+## Working Tree Hygiene
+
+- `lineage/` is intentionally versioned for the demo so signature verification and audit flows work offline.
+- live runs append new local artifacts under `traces/` and may add additional lineage records for fresh run IDs.
+- if you want to inspect the demo without changing the working tree, stick to the offline-safe commands listed above.
