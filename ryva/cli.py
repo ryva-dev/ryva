@@ -1156,6 +1156,7 @@ def cloud_sync_cmd(
     """Sync traces, lineage, compliance reports, and model cards to Ryva Cloud."""
     import json
     import os
+    from datetime import UTC, datetime
 
     import httpx
 
@@ -1391,7 +1392,7 @@ def cloud_sync_cmd(
     if manifest_path.exists():
         try:
             manifest = json.loads(manifest_path.read_text())
-            manifest["compiled_at"] = datetime.now(timezone.utc).isoformat()
+            manifest["compiled_at"] = datetime.now(UTC).isoformat()
             resp = httpx.post(
                 f"{CLOUD_URL}/api/v1/governance/manifest",
                 json={"project_id": project_id, "manifest": manifest},
@@ -2250,7 +2251,11 @@ def modelcard_cmd(
     root: Path = typer.Option(None, "--root", help="Project root"),
 ):
     """Generate a model card for an agent."""
-    from ryva.model_card import generate_model_card, save_model_card, print_model_card_summary
+    from ryva.model_card import (
+        generate_model_card,
+        print_model_card_summary,
+        save_model_card,
+    )
     from ryva.utils import find_project_root
 
     r = root or find_project_root()
