@@ -1751,6 +1751,33 @@ jobs:
 """
 
 
+def _bedrock_sync_script(
+    *,
+    project_id: str,
+    system_id: str,
+    source_type: str,
+) -> str:
+    return f"""#!/usr/bin/env bash
+set -euo pipefail
+
+: "${{RYVA_INGESTION_TOKEN:?Set RYVA_INGESTION_TOKEN}}"
+: "${{RYVA_PROJECT_ID:={project_id}}}"
+: "${{RYVA_CLOUD_URL:=https://ryva-cloud-production.up.railway.app}}"
+
+ryva cloud external refresh-preview \\
+  --system-id {system_id} \\
+  --project-id "${{RYVA_PROJECT_ID}}" \\
+  --source-type {source_type} \\
+  refresh.descriptor.json
+
+ryva cloud external refresh \\
+  --system-id {system_id} \\
+  --project-id "${{RYVA_PROJECT_ID}}" \\
+  --source-type {source_type} \\
+  refresh.descriptor.json
+"""
+
+
 def _write_source_specific_connector_files(
     out_dir: Path,
     *,
@@ -1762,32 +1789,32 @@ def _write_source_specific_connector_files(
     install_into_repo: bool,
     cron_schedule: str,
 ) -> None:
-    if source_type != "github_repo":
-        return
     source_sync_spec = config.get("source_sync_spec") or {}
     descriptor = source_sync_spec.get("sample_refresh_descriptor") or {}
-    if repo_root is not None:
-        descriptor = _merge_repo_refresh_descriptor(descriptor, repo_root)
-    branch = (
-        ((descriptor.get("repo") or {}).get("default_branch"))
-        or "main"
-    )
-    repo_dir = out_dir / "github"
-    repo_dir.mkdir(parents=True, exist_ok=True)
-    (repo_dir / "refresh.descriptor.json").write_text(
-        json.dumps(descriptor, indent=2)
-    )
-    (repo_dir / "ryva-external-sync.yml").write_text(
-        _github_actions_refresh_workflow(
-            project_id=project_id,
-            system_id=system_id,
-            source_type=source_type,
-            branch=branch,
-            cron_schedule=cron_schedule,
+
+    if source_type == "github_repo":
+        if repo_root is not None:
+            descriptor = _merge_repo_refresh_descriptor(descriptor, repo_root)
+        branch = (
+            ((descriptor.get("repo") or {}).get("default_branch"))
+            or "main"
         )
-    )
-    (repo_dir / "README.md").write_text(
-        """# GitHub repo sync starter
+        repo_dir = out_dir / "github"
+        repo_dir.mkdir(parents=True, exist_ok=True)
+        (repo_dir / "refresh.descriptor.json").write_text(
+            json.dumps(descriptor, indent=2)
+        )
+        (repo_dir / "ryva-external-sync.yml").write_text(
+            _github_actions_refresh_workflow(
+                project_id=project_id,
+                system_id=system_id,
+                source_type=source_type,
+                branch=branch,
+                cron_schedule=cron_schedule,
+            )
+        )
+        (repo_dir / "README.md").write_text(
+            """# GitHub repo sync starter
 
 This folder contains a starter GitHub Actions workflow for a repo-managed AI system.
 
@@ -1805,23 +1832,65 @@ Recommended repo secrets:
 Copy `ryva-external-sync.yml` into `.github/workflows/` in the source repository and
 update `refresh.descriptor.json` to reflect the repo's actual runtime and governance metadata.
 """
-    )
-    if install_into_repo and repo_root is not None:
-        workflow_dir = repo_root / ".github" / "workflows"
-        workflow_dir.mkdir(parents=True, exist_ok=True)
-        ryva_dir = repo_root / ".ryva"
-        ryva_dir.mkdir(parents=True, exist_ok=True)
-        (workflow_dir / "ryva-external-sync.yml").write_text(
-            _github_actions_refresh_workflow(
+        )
+        if install_into_repo and repo_root is not None:
+            workflow_dir = repo_root / ".github" / "workflows"
+            workflow_dir.mkdir(parents=True, exist_ok=True)
+            ryva_dir = repo_root / ".ryva"
+            ryva_dir.mkdir(parents=True, exist_ok=True)
+            (workflow_dir / "ryva-external-sync.yml").write_text(
+                _github_actions_refresh_workflow(
+                    project_id=project_id,
+                    system_id=system_id,
+                    source_type=source_type,
+                    branch=branch,
+                    cron_schedule=cron_schedule,
+                )
+            )
+            (ryva_dir / "refresh.descriptor.json").write_text(
+                json.dumps(descriptor, indent=2)
+            )
+        return
+
+    if source_type == "aws_bedrock":
+        bedrock_dir = out_dir / "bedrock"
+        bedrock_dir.mkdir(parents=True, exist_ok=True)
+        (bedrock_dir / "refresh.descriptor.json").write_text(
+            json.dumps(descriptor, indent=2)
+        )
+        (bedrock_dir / "sync-bedrock.sh").write_text(
+            _bedrock_sync_script(
                 project_id=project_id,
                 system_id=system_id,
                 source_type=source_type,
-                branch=branch,
-                cron_schedule=cron_schedule,
             )
         )
-        (ryva_dir / "refresh.descriptor.json").write_text(
-            json.dumps(descriptor, indent=2)
+        (bedrock_dir / "README.md").write_text(
+            """# AWS Bedrock sync starter
+
+This folder contains a starter shell script for refreshing a Bedrock-managed system in Ryva.
+
+Files:
+
+- `refresh.descriptor.json`
+- `sync-bedrock.sh`
+
+Required environment:
+
+- `RYVA_INGESTION_TOKEN`
+
+Optional environment:
+
+- `RYVA_PROJECT_ID`
+- `RYVA_CLOUD_URL`
+
+Update `refresh.descriptor.json` from your Bedrock agent metadata, then run:
+
+```bash
+chmod +x sync-bedrock.sh
+./sync-bedrock.sh
+```
+"""
         )
 
 
