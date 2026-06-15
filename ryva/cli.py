@@ -1535,6 +1535,131 @@ def _load_json_payload(path: Path) -> dict:
     return payload
 
 
+def _write_external_connector_readme(
+    out_dir: Path,
+    *,
+    system_id: str,
+    project_id: str,
+    source_type: str,
+    config: dict,
+) -> None:
+    system_name = config.get("system_name") or system_id
+    trace_path = out_dir / "trace.payload.json"
+    lineage_path = out_dir / "lineage.payload.json"
+    refresh_path = out_dir / "refresh.descriptor.json"
+    readme = f"""# Ryva external connector scaffold
+
+This folder was generated for system `{system_name}`.
+
+## Identity
+
+- `project_id`: `{project_id}`
+- `system_id`: `{system_id}`
+- `source_type`: `{source_type}`
+
+## Required auth
+
+Set an ingestion token that has the scopes you need:
+
+```bash
+export RYVA_INGESTION_TOKEN=\"<system ingestion token>\"
+```
+
+Optional:
+
+```bash
+export RYVA_PROJECT_ID=\"{project_id}\"
+export RYVA_CLOUD_URL=\"https://ryva-cloud-production.up.railway.app\"
+```
+
+## Send external runtime evidence
+
+```bash
+ryva cloud external trace \\
+  --system-id {system_id} \\
+  --project-id {project_id} \\
+  {trace_path}
+```
+
+```bash
+ryva cloud external lineage \\
+  --system-id {system_id} \\
+  --project-id {project_id} \\
+  {lineage_path}
+```
+
+## Preview external metadata refresh
+
+```bash
+ryva cloud external refresh-preview \\
+  --system-id {system_id} \\
+  --project-id {project_id} \\
+  --source-type {source_type} \\
+  {refresh_path}
+```
+
+## Apply external metadata refresh
+
+```bash
+ryva cloud external refresh \\
+  --system-id {system_id} \\
+  --project-id {project_id} \\
+  --source-type {source_type} \\
+  {refresh_path}
+```
+
+## Cloud-provided paths
+
+- trace ingestion: `{config.get("trace_ingestion_path", "")}`
+- lineage ingestion: `{config.get("lineage_ingestion_path", "")}`
+- metadata refresh: `{config.get("metadata_refresh_path", "")}`
+- metadata refresh preview: `{config.get("metadata_refresh_preview_path", "")}`
+"""
+    (out_dir / "README.md").write_text(readme)
+
+
+@cloud_external_app.command("scaffold")
+def cloud_external_scaffold_cmd(
+    system_id: str = typer.Option(..., "--system-id", help="Ryva system ID"),
+    out_dir: Path = typer.Option(Path("external-connector"), "--out", help="Directory to write sample connector files into"),
+    project_id: str | None = typer.Option(None, "--project-id", help="Ryva project ID"),
+    cloud_url: str = typer.Option(None, "--cloud-url", help="Ryva Cloud base URL"),
+    root: Path | None = typer.Option(None, "--root", help="Optional Ryva root for saved login lookup"),
+):
+    """Generate ready-to-use sample files for an imported external system connector."""
+    from ryva.cloud_sync import get_system_ingestion_config, get_token
+
+    resolved_project_id = _resolve_cloud_project_id(root, project_id)
+    lookup_root = root or Path.cwd()
+    bearer = get_token(lookup_root)
+    if not bearer:
+        console.print("[red]Not logged in. Run: ryva cloud login[/red]")
+        raise typer.Exit(1)
+    target_url = cloud_url or os.environ.get("RYVA_CLOUD_URL", "https://ryva-cloud-production.up.railway.app")
+
+    config = get_system_ingestion_config(
+        project_id=resolved_project_id,
+        system_id=system_id,
+        api_key=bearer,
+        cloud_url=target_url,
+    )
+    source_sync_spec = config.get("source_sync_spec") or {}
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "trace.payload.json").write_text(json.dumps(config.get("sample_trace_payload") or {}, indent=2))
+    (out_dir / "lineage.payload.json").write_text(json.dumps(config.get("sample_lineage_payload") or {}, indent=2))
+    (out_dir / "refresh.descriptor.json").write_text(
+        json.dumps(source_sync_spec.get("sample_refresh_descriptor") or {}, indent=2)
+    )
+    _write_external_connector_readme(
+        out_dir,
+        system_id=system_id,
+        project_id=resolved_project_id,
+        source_type=source_sync_spec.get("source_type") or "other",
+        config=config,
+    )
+    console.print(f"[green]✓ External connector scaffold written to {out_dir}[/green]")
+
+
 @cloud_external_app.command("trace")
 def cloud_external_trace_cmd(
     payload_file: Path = typer.Argument(..., help="Path to external trace JSON payload"),

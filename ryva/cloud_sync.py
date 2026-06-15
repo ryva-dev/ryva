@@ -204,6 +204,16 @@ def _post(url: str, payload: dict, api_key: str) -> dict:
     return resp.json()
 
 
+def _get(url: str, api_key: str) -> dict:
+    resp = httpx.get(
+        url,
+        headers={"Authorization": f"Bearer {api_key}"},
+        timeout=30.0,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
 def _external_signature_message(kind: str, project_id: str, system_id: str, payload: dict) -> str:
     body = dict(payload)
     body.pop("signature", None)
@@ -332,6 +342,19 @@ def refresh_external_metadata(
         f"{cloud_url}/api/v1/systems/source-sync/refresh",
         payload,
         ingestion_token,
+    )
+
+
+def get_system_ingestion_config(
+    *,
+    project_id: str,
+    system_id: str,
+    api_key: str,
+    cloud_url: str,
+) -> dict:
+    return _get(
+        f"{cloud_url}/api/v1/systems/{system_id}/ingestion-config?project_id={project_id}",
+        api_key,
     )
 
 
