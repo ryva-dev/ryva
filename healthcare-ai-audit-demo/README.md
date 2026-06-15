@@ -171,3 +171,8 @@ The script always runs the offline-safe artifact commands. If `ANTHROPIC_API_KEY
 - `lineage/` is intentionally versioned for the demo so signature verification and audit flows work offline.
 - live runs append new local artifacts under `traces/` and may add additional lineage records for fresh run IDs.
 - if you want to inspect the demo without changing the working tree, stick to the offline-safe commands listed above.
+- to remove generated local artifacts and return the demo to its checked-in state, run:
+
+```bash
+python -m ryva.cli demo reset
+```

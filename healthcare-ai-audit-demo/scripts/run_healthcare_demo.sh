@@ -34,3 +34,6 @@ echo "==> Running tests"
 "${RYVA_CLI[@]}" test --root "$ROOT_DIR" --regression --agent patient_intake_triage_agent
 "${RYVA_CLI[@]}" test --root "$ROOT_DIR" --fuzz --agent patient_intake_triage_agent
 "${RYVA_CLI[@]}" align --root "$ROOT_DIR" --agent patient_intake_triage_agent
+
+echo "==> Live demo completed. To remove generated local artifacts, run:"
+echo "    python -m ryva.cli demo reset --root \"$ROOT_DIR\""

@@ -2210,6 +2210,9 @@ def cloud_external_refresh_cmd(
 audit_app = typer.Typer(help="Audit package generation and export.")
 app.add_typer(audit_app, name="audit")
 
+demo_app = typer.Typer(help="Demo project maintenance helpers.")
+app.add_typer(demo_app, name="demo")
+
 
 @audit_app.command("export")
 def audit_export_cmd(
@@ -2223,6 +2226,22 @@ def audit_export_cmd(
     r = root or find_project_root()
     result = export_audit_package(r, out)
     console.print(f"[bold green]✓ Audit package exported[/bold green] to [cyan]{result}[/cyan]")
+
+
+@demo_app.command("reset")
+def demo_reset_cmd(
+    root: Path = typer.Option(None, "--root", help="Demo project root"),
+):
+    """Remove generated demo artifacts while preserving checked-in fixtures."""
+    from ryva.demo_tools import reset_demo_artifacts
+    from ryva.utils import find_project_root
+
+    r = root or find_project_root()
+    result = reset_demo_artifacts(r)
+    console.print(
+        "[bold green]✓ Demo artifacts reset[/bold green] "
+        f"(removed {result['removed_files']} generated files, {result['removed_dirs']} generated directories)"
+    )
 
 
 @app.command("modelcard")
