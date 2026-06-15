@@ -485,4 +485,9 @@ def sync_all(root: Path, project_id: str, api_key: str, cloud_url: str) -> dict:
             except Exception as exc:
                 console.print(f"[yellow]  ⚠ Could not sync exceptions: {exc}[/yellow]")
 
+    console.print(
+        "[dim]  ℹ Ryva Cloud is the system of record for approvals, release decisions, and audit packages. "
+        "Local target/ files are ingestion inputs until synced.[/dim]"
+    )
+
     return results
