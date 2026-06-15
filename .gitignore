@@ -15,5 +15,6 @@ target/
 logs/
 .env
 .ryva_secret
+!healthcare-ai-audit-demo/.ryva_secret
 .DS_Store
 my-first-project/traces/

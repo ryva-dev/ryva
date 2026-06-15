@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from ryva.lineage import (
+    _legacy_fallback_secret,
     chain,
     export_compliance,
     hash_content,
@@ -233,6 +234,10 @@ class TestHmacSignature:
         assert "signature" in data
         assert len(data["signature"]) == 64  # hex-encoded SHA-256
 
+    def test_record_creates_project_secret_when_unset(self, tmp_path):
+        record(tmp_path, _make_trace("sig00"))
+        assert (tmp_path / ".ryva_secret").exists()
+
     def test_verify_passes_for_fresh_record(self, tmp_path):
         record(tmp_path, _make_trace("sig02"))
         ok, detail = verify_record(tmp_path, "sig02")
@@ -283,3 +288,35 @@ class TestHmacSignature:
         monkeypatch.setenv("RYVA_SECRET", "secret-b")
         ok, _ = verify_record(tmp_path, "sig06")
         assert ok is False
+
+    def test_legacy_path_secret_still_verifies_existing_records(self, tmp_path):
+        trace = _make_trace("sig07")
+        lineage_dir = tmp_path / "lineage"
+        lineage_dir.mkdir()
+        canonical = {
+            "run_id": trace["run_id"],
+            "parent_run_id": trace.get("parent_run_id"),
+            "trace_id": trace.get("trace_id", trace["run_id"]),
+            "agent": trace.get("agent"),
+            "model": trace.get("model"),
+            "provider": trace.get("provider"),
+            "prompt_hash": trace.get("prompt_hash"),
+            "input_hash": trace.get("input_hash"),
+            "output_hash": trace.get("output_hash"),
+            "started_at": trace.get("started_at"),
+            "status": trace.get("status"),
+        }
+        import hashlib
+        import hmac
+
+        payload = json.dumps(canonical, sort_keys=True, default=str).encode()
+        trace["signature"] = hmac.new(
+            _legacy_fallback_secret(tmp_path),
+            payload,
+            hashlib.sha256,
+        ).hexdigest()
+        (lineage_dir / "sig07.json").write_text(json.dumps(trace))
+
+        ok, detail = verify_record(tmp_path, "sig07")
+        assert ok is True
+        assert "legacy" in detail.lower()

@@ -210,7 +210,9 @@ def _print_results(results: list):
     passed = sum(1 for *_, p, _, _ in results if p)
     total = len(results)
 
-    def score_color(s):
+    def score_color(s, passed_case):
+        if passed_case and s < 0.7:
+            return "yellow"
         if s >= 0.7:
             return "green"
         elif s >= 0.4:
@@ -224,9 +226,9 @@ def _print_results(results: list):
         q = scores.get("answer_quality", 0)
         table.add_row(
             pipeline, case, status,
-            f"[{score_color(r)}]{r:.2f}[/{score_color(r)}]",
-            f"[{score_color(f)}]{f:.2f}[/{score_color(f)}]",
-            f"[{score_color(q)}]{q:.2f}[/{score_color(q)}]",
+            f"[{score_color(r, p)}]{r:.2f}[/{score_color(r, p)}]",
+            f"[{score_color(f, p)}]{f:.2f}[/{score_color(f, p)}]",
+            f"[{score_color(q, p)}]{q:.2f}[/{score_color(q, p)}]",
             detail
         )
 

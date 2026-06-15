@@ -11,7 +11,7 @@ echo "==> Compiling healthcare-ai-audit-demo"
 
 echo "==> Generating docs, model card, governance report, and audit package"
 "${RYVA_CLI[@]}" docs generate --root "$ROOT_DIR"
-"${RYVA_CLI[@]}" modelcard generate patient_intake_triage_agent --root "$ROOT_DIR"
+"${RYVA_CLI[@]}" modelcard patient_intake_triage_agent --root "$ROOT_DIR"
 "${RYVA_CLI[@]}" governance report --root "$ROOT_DIR" || true
 "${RYVA_CLI[@]}" lineage verify --all --root "$ROOT_DIR"
 "${RYVA_CLI[@]}" lineage search --agent patient_intake_triage_agent --root "$ROOT_DIR"

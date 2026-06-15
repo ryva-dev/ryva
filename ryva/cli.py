@@ -2207,6 +2207,24 @@ def cloud_external_refresh_cmd(
     console.print_json(data=result)
 
 
+audit_app = typer.Typer(help="Audit package generation and export.")
+app.add_typer(audit_app, name="audit")
+
+
+@audit_app.command("export")
+def audit_export_cmd(
+    out: Path | None = typer.Option(None, "--out", "-o", help="Output zip path"),
+    root: Path = typer.Option(None, "--root", help="Project root"),
+):
+    """Export an audit package zip with governance, lineage, and evidence artifacts."""
+    from ryva.audit_export import export_audit_package
+    from ryva.utils import find_project_root
+
+    r = root or find_project_root()
+    result = export_audit_package(r, out)
+    console.print(f"[bold green]✓ Audit package exported[/bold green] to [cyan]{result}[/cyan]")
+
+
 @app.command("modelcard")
 def modelcard_cmd(
     agent: str = typer.Argument(..., help="Agent name to generate model card for"),

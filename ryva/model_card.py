@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -177,7 +177,7 @@ def generate_model_card(root: Path, agent_name: str) -> dict:
 
     card: dict[str, Any] = {
         "schema_version": "1.0.0",
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "generated_by": "Ryva Forge — AI Governance Platform",
         "system": {
             "name": agent_name,
@@ -268,7 +268,7 @@ def generate_model_card(root: Path, agent_name: str) -> dict:
             "lineage_tracking": True,
             "tamper_evident_logs": lineage_signing,
             "audit_log_retention_days": 90,
-            "last_reviewed": datetime.utcnow().strftime("%Y-%m-%d"),
+            "last_reviewed": datetime.now(UTC).strftime("%Y-%m-%d"),
             "reviewer": "Generated automatically by Ryva Forge",
         },
         "contacts": {

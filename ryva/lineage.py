@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import os
+import secrets
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -27,16 +28,40 @@ _SIG_FIELDS = (
 # ---------------------------------------------------------------------------
 
 def _load_secret(root: Path) -> bytes:
-    """Load signing secret from env var, project file, or derive a stable fallback."""
+    """Load signing secret from env var or project file, creating one if needed."""
     env_val = os.environ.get(_SECRET_ENV)
     if env_val:
         return env_val.encode()
     secret_file = root / _SECRET_FILE
     if secret_file.exists():
         return secret_file.read_bytes().strip()
-    # Stable fallback: SHA-256 of the project root path (not cryptographically secure
-    # but ensures consistent signatures across calls without a configured secret)
+    secret = secrets.token_hex(32).encode()
+    secret_file.write_bytes(secret + b"\n")
+    try:
+        os.chmod(secret_file, 0o600)
+    except OSError:
+        pass
+    return secret
+
+
+def _legacy_fallback_secret(root: Path) -> bytes:
+    """Return the legacy path-derived fallback secret for compatibility checks only."""
     return hashlib.sha256(str(root.resolve()).encode()).digest()
+
+
+def _verification_secrets(root: Path) -> list[bytes]:
+    """Return candidate secrets for verification without mutating project state."""
+    candidates: list[bytes] = []
+    env_val = os.environ.get(_SECRET_ENV)
+    if env_val:
+        candidates.append(env_val.encode())
+    secret_file = root / _SECRET_FILE
+    if secret_file.exists():
+        candidates.append(secret_file.read_bytes().strip())
+    legacy = _legacy_fallback_secret(root)
+    if legacy not in candidates:
+        candidates.append(legacy)
+    return candidates
 
 
 def _sign(entry: dict, root: Path) -> str:
@@ -55,9 +80,14 @@ def verify_record(root: Path, run_id: str) -> tuple[bool, str]:
     stored_sig = entry.get("signature")
     if not stored_sig:
         return False, "No signature present — record predates tamper-evident lineage"
-    expected = _sign(entry, root)
-    if hmac.compare_digest(stored_sig, expected):
-        return True, "Signature valid"
+    for secret in _verification_secrets(root):
+        canonical = {k: entry.get(k) for k in _SIG_FIELDS}
+        payload = json.dumps(canonical, sort_keys=True, default=str).encode()
+        expected = hmac.new(secret, payload, hashlib.sha256).hexdigest()
+        if hmac.compare_digest(stored_sig, expected):
+            if secret == _legacy_fallback_secret(root):
+                return True, "Signature valid (legacy project-path secret)"
+            return True, "Signature valid"
     return False, "Signature mismatch — record may have been tampered with"
 
 

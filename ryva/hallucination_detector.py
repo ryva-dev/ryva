@@ -233,7 +233,10 @@ def _print_results(results: list):
 
     for agent, case, check, p, score, detail in results:
         status = "[bold green]✓ CLEAN[/bold green]" if p else "[bold red]✗ HALLUCINATION[/bold red]"
-        score_color = "green" if score < 0.3 else "yellow" if score < 0.7 else "red"
+        if p:
+            score_color = "green" if score < 0.3 else "yellow"
+        else:
+            score_color = "green" if score < 0.3 else "yellow" if score < 0.7 else "red"
         table.add_row(
             agent,
             case,

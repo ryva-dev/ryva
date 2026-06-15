@@ -62,7 +62,7 @@ Optional environment variables:
 
 ```bash
 export ANTHROPIC_API_KEY=your_key_here     # Required for live model runs and model-dependent tests
-export RYVA_SECRET=demo-signing-secret     # Optional; signs lineage with your chosen secret
+export RYVA_SECRET=demo-signing-secret     # Optional override; demo lineage already ships with a stable project secret
 export RYVA_CLOUD_URL=https://...          # Optional override for Ryva Cloud endpoint
 ```
 
@@ -99,7 +99,7 @@ Generate governance artifacts:
 
 ```bash
 python -m ryva.cli docs generate
-python -m ryva.cli modelcard generate patient_intake_triage_agent
+python -m ryva.cli modelcard patient_intake_triage_agent
 python -m ryva.cli governance report
 python -m ryva.cli lineage verify --all
 python -m ryva.cli lineage search --agent patient_intake_triage_agent
@@ -120,7 +120,7 @@ If you do not want to use real cloud credentials yet, use the local fixture payl
 1. Run `python -m ryva.cli compile` to show the typed AI system definition and prompt hashing.
 2. Open [agents/patient_intake_triage_agent.yml](/Users/allieball/ryva/healthcare-ai-audit-demo/agents/patient_intake_triage_agent.yml) and [policies.yml](/Users/allieball/ryva/healthcare-ai-audit-demo/policies.yml) to frame the controls.
 3. Run the urgent input and show that the system routes to human review rather than making a care decision.
-4. Run `python -m ryva.cli governance report` and `python -m ryva.cli modelcard generate patient_intake_triage_agent` to show audit evidence.
+4. Run `python -m ryva.cli governance report` and `python -m ryva.cli modelcard patient_intake_triage_agent` to show audit evidence.
 5. Run `python -m ryva.cli lineage search --agent patient_intake_triage_agent` and `python -m ryva.cli lineage verify --all` to show traceability and tamper-evident lineage.
 6. Open `cloud_fixtures/` to show approvals, change history, and the audit package shape that Ryva Cloud would ingest.
 
@@ -150,7 +150,7 @@ These commands work offline with local files:
 - `python -m ryva.cli list agents`
 - `python -m ryva.cli dag --agent patient_intake_triage_agent`
 - `python -m ryva.cli docs generate`
-- `python -m ryva.cli modelcard generate patient_intake_triage_agent`
+- `python -m ryva.cli modelcard patient_intake_triage_agent`
 - `python -m ryva.cli governance report`
 - `python -m ryva.cli lineage verify --all`
 - `python -m ryva.cli lineage search --agent patient_intake_triage_agent`
