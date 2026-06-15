@@ -1834,6 +1834,21 @@ def handler(event, context):
 """
 
 
+def _github_dispatch_script() -> str:
+    return """#!/usr/bin/env bash
+set -euo pipefail
+
+: "${GITHUB_REPO:?Set GITHUB_REPO to owner/repo}"
+: "${GITHUB_TOKEN:?Set GITHUB_TOKEN to a token with repo workflow dispatch access}"
+
+curl -X POST \\
+  -H "Accept: application/vnd.github+json" \\
+  -H "Authorization: Bearer ${GITHUB_TOKEN}" \\
+  https://api.github.com/repos/${GITHUB_REPO}/dispatches \\
+  -d '{"event_type":"ryva-refresh"}'
+"""
+
+
 def _write_source_specific_connector_files(
     out_dir: Path,
     *,
@@ -1869,6 +1884,7 @@ def _write_source_specific_connector_files(
                 cron_schedule=cron_schedule,
             )
         )
+        (repo_dir / "dispatch-refresh.sh").write_text(_github_dispatch_script())
         (repo_dir / "README.md").write_text(
             """# GitHub repo sync starter
 
@@ -1878,6 +1894,7 @@ Files:
 
 - `refresh.descriptor.json`
 - `ryva-external-sync.yml`
+- `dispatch-refresh.sh`
 
 Recommended repo secrets:
 
@@ -1967,6 +1984,33 @@ EventBridge, Lambda, or another AWS event source when the upstream Bedrock confi
         )
 
 
+def _write_connector_manifest(
+    out_dir: Path,
+    *,
+    project_id: str,
+    system_id: str,
+    source_type: str,
+    config: dict,
+) -> None:
+    manifest = {
+        "project_id": project_id,
+        "system_id": system_id,
+        "source_type": source_type,
+        "trace_ingestion_path": config.get("trace_ingestion_path"),
+        "lineage_ingestion_path": config.get("lineage_ingestion_path"),
+        "metadata_refresh_path": config.get("metadata_refresh_path"),
+        "metadata_refresh_preview_path": config.get("metadata_refresh_preview_path"),
+        "source_sync_status": config.get("source_sync_status"),
+        "source_sync_spec": config.get("source_sync_spec"),
+        "files": {
+            "trace_payload": "trace.payload.json",
+            "lineage_payload": "lineage.payload.json",
+            "refresh_descriptor": "refresh.descriptor.json",
+        },
+    }
+    (out_dir / "connector.manifest.json").write_text(json.dumps(manifest, indent=2))
+
+
 @cloud_external_app.command("scaffold")
 def cloud_external_scaffold_cmd(
     system_id: str = typer.Option(..., "--system-id", help="Ryva system ID"),
@@ -2013,6 +2057,13 @@ def cloud_external_scaffold_cmd(
         out_dir,
         system_id=system_id,
         project_id=resolved_project_id,
+        source_type=source_type,
+        config=config,
+    )
+    _write_connector_manifest(
+        out_dir,
+        project_id=resolved_project_id,
+        system_id=system_id,
         source_type=source_type,
         config=config,
     )
