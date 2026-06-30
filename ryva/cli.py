@@ -1682,6 +1682,20 @@ ryva cloud external refresh \\
   {refresh_path}
 ```
 
+## Production app hook-in (recommended)
+
+Use the Ryva ingest SDK from your existing Claude app — no Ryva CLI rewrite required:
+
+```bash
+export RYVA_PROJECT_ID="{project_id}"
+export RYVA_SYSTEM_ID="{system_id}"
+export RYVA_INGESTION_TOKEN="<system ingestion token>"
+pip install ryva
+python instrument_app.py
+```
+
+See `instrument_app.py` for a drop-in `instrumented_client()` example.
+
 ## Cloud-provided paths
 
 - trace ingestion: `{config.get("trace_ingestion_path", "")}`
@@ -1690,6 +1704,55 @@ ryva cloud external refresh \\
 - metadata refresh preview: `{config.get("metadata_refresh_preview_path", "")}`
 """
     (out_dir / "README.md").write_text(readme)
+
+
+def _write_instrument_app_py(
+    out_dir: Path,
+    *,
+    project_id: str,
+    system_id: str,
+) -> None:
+    script = f'''"""Example production Claude app reporting traces to Ryva Forge."""
+from __future__ import annotations
+
+import json
+import os
+
+from ryva.integrations.anthropic import instrumented_client
+from ryva.ingest import ForgeReporter
+
+
+PROJECT_ID = os.environ.get("RYVA_PROJECT_ID", "{project_id}")
+SYSTEM_ID = os.environ.get("RYVA_SYSTEM_ID", "{system_id}")
+INGESTION_TOKEN = os.environ["RYVA_INGESTION_TOKEN"]
+
+
+def main() -> None:
+    reporter = ForgeReporter(
+        project_id=PROJECT_ID,
+        system_id=SYSTEM_ID,
+        ingestion_token=INGESTION_TOKEN,
+    )
+    client = instrumented_client(reporter=reporter)
+
+    response = client.messages.create(
+        model="claude-sonnet-4-5",
+        max_tokens=512,
+        messages=[
+            {{
+                "role": "user",
+                "content": "Summarize this intake request for routing: routine wellness visit next week.",
+            }}
+        ],
+    )
+    print(json.dumps({{"run_id": getattr(response, "id", None), "status": "sent_to_forge"}}, indent=2))
+    reporter.flush()
+
+
+if __name__ == "__main__":
+    main()
+'''
+    (out_dir / "instrument_app.py").write_text(script)
 
 
 def _github_actions_refresh_workflow(
@@ -2060,6 +2123,11 @@ def cloud_external_scaffold_cmd(
         project_id=resolved_project_id,
         source_type=source_type,
         config=config,
+    )
+    _write_instrument_app_py(
+        out_dir,
+        project_id=resolved_project_id,
+        system_id=system_id,
     )
     _write_connector_manifest(
         out_dir,

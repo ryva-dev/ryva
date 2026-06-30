@@ -35,5 +35,12 @@ echo "==> Running tests"
 "${RYVA_CLI[@]}" test --root "$ROOT_DIR" --fuzz --agent patient_intake_triage_agent
 "${RYVA_CLI[@]}" align --root "$ROOT_DIR" --agent patient_intake_triage_agent
 
+if [[ -n "${RYVA_INGESTION_TOKEN:-}" && -n "${RYVA_PROJECT_ID:-}" && -n "${RYVA_SYSTEM_ID:-}" ]]; then
+  echo "==> Sending production-style trace to Ryva Forge"
+  python "$ROOT_DIR/scripts/forge_ingest_demo.py"
+else
+  echo "==> Skipping Forge ingest demo (set RYVA_PROJECT_ID, RYVA_SYSTEM_ID, RYVA_INGESTION_TOKEN to enable)"
+fi
+
 echo "==> Live demo completed. To remove generated local artifacts, run:"
 echo "    python -m ryva.cli demo reset --root \"$ROOT_DIR\""

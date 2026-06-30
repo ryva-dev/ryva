@@ -115,6 +115,24 @@ python -m ryva.cli cloud sync
 
 If you do not want to use real cloud credentials yet, use the local fixture payloads in `cloud_fixtures/`.
 
+## Production Forge Hook-In (No CLI Rewrite)
+
+Send live or synthetic production traces to Ryva Forge from your existing Claude app:
+
+```bash
+export RYVA_PROJECT_ID="<forge-project-id>"
+export RYVA_SYSTEM_ID="<registered-system-id>"
+export RYVA_INGESTION_TOKEN="<trace_ingest + lineage_ingest token>"
+# optional for live Claude call:
+export ANTHROPIC_API_KEY="..."
+
+python scripts/forge_ingest_demo.py
+```
+
+`scripts/forge_ingest_demo.py` uses `ryva.integrations.anthropic.instrumented_client()` when `ANTHROPIC_API_KEY` is set, otherwise sends a synthetic hashed lineage record suitable for dashboard demos.
+
+`scripts/run_healthcare_demo.sh` runs the Forge ingest demo automatically when the `RYVA_*` env vars are set.
+
 ## Five-Minute Demo Flow
 
 1. Run `python -m ryva.cli compile` to show the typed AI system definition and prompt hashing.
